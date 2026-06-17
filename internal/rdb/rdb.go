@@ -474,7 +474,7 @@ func (r *RDB) Done(ctx context.Context, msg *base.TaskMessage) error {
 		base.LeaseKeyWithPrefix(r.prefix, msg.Queue),
 		base.TaskKeyWithPrefix(r.prefix, msg.Queue, msg.ID),
 		base.ProcessedKeyWithPrefix(r.prefix, msg.Queue, now),
-		base.ProcessedTotalKey(msg.Queue),
+		base.ProcessedTotalKeyWithPrefix(r.prefix, msg.Queue),
 	}
 	argv := []any{
 		msg.ID,
@@ -582,7 +582,7 @@ func (r *RDB) MarkAsComplete(ctx context.Context, msg *base.TaskMessage) error {
 		base.CompletedKeyWithPrefix(r.prefix, msg.Queue),
 		base.TaskKeyWithPrefix(r.prefix, msg.Queue, msg.ID),
 		base.ProcessedKeyWithPrefix(r.prefix, msg.Queue, now),
-		base.ProcessedTotalKey(msg.Queue),
+		base.ProcessedTotalKeyWithPrefix(r.prefix, msg.Queue),
 	}
 	argv := []any{
 		msg.ID,
@@ -944,8 +944,8 @@ func (r *RDB) Retry(ctx context.Context, msg *base.TaskMessage, processAt time.T
 		base.RetryKeyWithPrefix(r.prefix, msg.Queue),
 		base.ProcessedKeyWithPrefix(r.prefix, msg.Queue, now),
 		base.FailedKeyWithPrefix(r.prefix, msg.Queue, now),
-		base.ProcessedTotalKey(msg.Queue),
-		base.FailedTotalKey(msg.Queue),
+		base.ProcessedTotalKeyWithPrefix(r.prefix, msg.Queue),
+		base.FailedTotalKeyWithPrefix(r.prefix, msg.Queue),
 	}
 	argv := []any{
 		msg.ID,
@@ -1044,8 +1044,8 @@ func (r *RDB) Archive(ctx context.Context, msg *base.TaskMessage, errMsg string)
 		base.ArchivedKeyWithPrefix(r.prefix, msg.Queue),
 		base.ProcessedKeyWithPrefix(r.prefix, msg.Queue, now),
 		base.FailedKeyWithPrefix(r.prefix, msg.Queue, now),
-		base.ProcessedTotalKey(msg.Queue),
-		base.FailedTotalKey(msg.Queue),
+		base.ProcessedTotalKeyWithPrefix(r.prefix, msg.Queue),
+		base.FailedTotalKeyWithPrefix(r.prefix, msg.Queue),
 		base.TaskKeyPrefixWithPrefix(r.prefix, msg.Queue),
 	}
 	argv := []any{
