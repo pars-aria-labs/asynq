@@ -12,8 +12,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/testutil"
+	"github.com/pars-aria-labs/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/testutil"
 )
 
 func TestSchedulerRegister(t *testing.T) {
@@ -83,6 +83,7 @@ func TestSchedulerRegister(t *testing.T) {
 	// Tests for existing redis connection.
 	for _, tc := range tests {
 		redisClient := getRedisConnOpt(t).MakeRedisClient().(redis.UniversalClient)
+		defer redisClient.Close()
 		scheduler := NewSchedulerFromRedisClient(redisClient, nil)
 		if _, err := scheduler.Register(tc.cronspec, tc.task, tc.opts...); err != nil {
 			t.Fatal(err)

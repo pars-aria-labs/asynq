@@ -2,10 +2,12 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
-	"github.com/hibiken/asynq"
+	"github.com/pars-aria-labs/asynq"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -27,13 +29,9 @@ func (qmc *QueueMetricsCollector) collectQueueInfo() ([]*asynq.QueueInfo, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get queue names: %w", err)
 	}
-	infos := make([]*asynq.QueueInfo, len(qnames))
-	for i, qname := range qnames {
-		qinfo, err := qmc.inspector.GetQueueInfo(qname)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get queue info: %w", err)
-		}
-		infos[i] = qinfo
+	infos, err := qmc.inspector.GetQueueInfoBatch(context.Background(), qnames, 15*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get queue information: %w", err)
 	}
 	return infos, nil
 }

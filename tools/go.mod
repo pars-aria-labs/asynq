@@ -1,14 +1,14 @@
-module github.com/hibiken/asynq/tools
+module github.com/pars-aria-labs/asynq/tools
 
-go 1.22
+go 1.25.0
 
 require (
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/fatih/color v1.18.0
 	github.com/gdamore/tcell/v2 v2.5.1
 	github.com/google/go-cmp v0.6.0
-	github.com/hibiken/asynq v0.25.0
-	github.com/hibiken/asynq/x v0.0.0-20220131170841-349f4c50fb1d
+	github.com/pars-aria-labs/asynq v0.27.0
+	github.com/pars-aria-labs/asynq/x v0.27.0
 	github.com/mattn/go-runewidth v0.0.16
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.11.1

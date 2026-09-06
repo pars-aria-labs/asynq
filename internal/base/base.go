@@ -14,16 +14,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hibiken/asynq/internal/errors"
-	pb "github.com/hibiken/asynq/internal/proto"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/pars-aria-labs/asynq/internal/errors"
+	pb "github.com/pars-aria-labs/asynq/internal/proto"
+	"github.com/pars-aria-labs/asynq/internal/timeutil"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Version of asynq library and CLI.
-const Version = "0.26.0"
+const Version = "0.27.0"
 
 // DefaultQueueName is the queue name used if none are specified by user.
 const DefaultQueueName = "default"
@@ -100,6 +100,24 @@ func TaskStateFromString(s string) (TaskState, error) {
 func ValidateQueueName(qname string) error {
 	if len(strings.TrimSpace(qname)) == 0 {
 		return fmt.Errorf("queue name must contain one or more characters")
+	}
+	// Queue names are embedded as Redis Cluster hash tags: {<qname>}.
+	// A leading closing brace would create an empty first tag ("{}"), which
+	// makes Redis hash the whole key and sends related queue keys to different
+	// slots.
+	if strings.HasPrefix(qname, "}") {
+		return fmt.Errorf("queue name must not begin with a closing brace")
+	}
+	return nil
+}
+
+// ValidateRedisPrefix rejects a prefix whose first Redis Cluster hash-tag
+// candidate is empty. In that form, related keys would be hashed in full and
+// multi-key queue operations could fail with CROSSSLOT.
+func ValidateRedisPrefix(prefix string) error {
+	open := strings.IndexByte(prefix, '{')
+	if open >= 0 && open+1 < len(prefix) && prefix[open+1] == '}' {
+		return fmt.Errorf("Redis key prefix must not contain an empty first hash tag")
 	}
 	return nil
 }

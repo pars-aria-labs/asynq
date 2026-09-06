@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/hibiken/asynq"
-	"github.com/hibiken/asynq/x/metrics"
+	"github.com/pars-aria-labs/asynq"
+	"github.com/pars-aria-labs/asynq/x/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -42,9 +42,13 @@ func main() {
 		Password: flagRedisPassword,
 		Username: flagRedisUsername,
 	})
+	defer inspector.Close()
+	inspectorMetrics := metrics.NewInspectorMetricsCollector()
+	inspector.SetOperationObserver(inspectorMetrics)
 
 	reg.MustRegister(
 		metrics.NewQueueMetricsCollector(inspector),
+		inspectorMetrics,
 		// Add the standard process and go metrics to the registry
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		collectors.NewGoCollector(),

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hibiken/asynq/internal/rdb"
-	"github.com/hibiken/asynq/internal/testbroker"
-	"github.com/hibiken/asynq/internal/testutil"
+	"github.com/pars-aria-labs/asynq/internal/rdb"
+	"github.com/pars-aria-labs/asynq/internal/testbroker"
+	"github.com/pars-aria-labs/asynq/internal/testutil"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/goleak"
@@ -66,6 +66,7 @@ func TestServerFromRedisClient(t *testing.T) {
 
 	redisConnOpt := getRedisConnOpt(t)
 	redisClient := redisConnOpt.MakeRedisClient().(redis.UniversalClient)
+	defer redisClient.Close()
 	c := NewClientFromRedisClient(redisClient)
 	srv := NewServerFromRedisClient(redisClient, Config{
 		Concurrency: 10,

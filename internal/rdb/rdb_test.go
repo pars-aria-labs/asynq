@@ -18,10 +18,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/errors"
-	h "github.com/hibiken/asynq/internal/testutil"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/pars-aria-labs/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/errors"
+	h "github.com/pars-aria-labs/asynq/internal/testutil"
+	"github.com/pars-aria-labs/asynq/internal/timeutil"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -2400,7 +2400,7 @@ func TestArchiveTrim(t *testing.T) {
 	errMsg := "SMTP server not responding"
 
 	maxArchiveSet := make([]base.Z, 0)
-	for i := 0; i < maxArchiveSize-1; i++ {
+	for i := 0; i < maxArchiveSize; i++ {
 		maxArchiveSet = append(maxArchiveSet, base.Z{Message: &base.TaskMessage{
 			ID:      uuid.NewString(),
 			Type:    "generate_csv",
@@ -2527,6 +2527,55 @@ func TestArchiveTrim(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestArchiveCleanupDoesNotRecreateAnEvictedCurrentTask(t *testing.T) {
+	r := setup(t)
+	defer r.Close()
+	ctx := context.Background()
+	now := time.Now().Truncate(time.Second)
+	r.SetClock(timeutil.NewSimulatedClock(now))
+
+	current := h.NewTaskMessage("current", nil)
+	current.ID = "a-current"
+	current.UniqueKey = base.UniqueKey("default", "current", []byte("payload"))
+	retained := h.NewTaskMessage("retained", nil)
+	retained.ID = "z-retained"
+	h.SeedAllActiveQueues(t, r.client, map[string][]*base.TaskMessage{"default": {current}})
+	h.SeedAllLease(t, r.client, map[string][]base.Z{"default": {{Message: current, Score: now.Add(time.Minute).Unix()}}})
+	h.SeedAllArchivedQueues(t, r.client, map[string][]base.Z{"default": {{Message: retained, Score: now.Unix()}}})
+
+	modified := h.TaskMessageWithError(*current, "failed", now)
+	keys := []string{
+		base.TaskKey(current.Queue, current.ID),
+		base.ActiveKey(current.Queue),
+		base.LeaseKey(current.Queue),
+		base.ArchivedKey(current.Queue),
+		base.ProcessedKey(current.Queue, now),
+		base.FailedKey(current.Queue, now),
+		base.ProcessedTotalKey(current.Queue),
+		base.FailedTotalKey(current.Queue),
+		base.TaskKeyPrefix(current.Queue),
+	}
+	args := []any{
+		current.ID,
+		h.MustMarshal(t, modified),
+		now.Unix(),
+		now.AddDate(0, 0, -archivedExpirationInDays).Unix(),
+		1, // Force one of the equally scored archive entries to be evicted.
+		now.Add(statsTTL).Unix(),
+		int64(math.MaxInt64),
+		BulkBatchSize,
+	}
+	if err := archiveCmd.Run(ctx, r.client, keys, args...).Err(); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.client.ZRange(ctx, base.ArchivedKey("default"), 0, -1).Val(); !cmp.Equal(got, []string{retained.ID}) {
+		t.Fatalf("archived IDs = %v, want [%s]", got, retained.ID)
+	}
+	if got := r.client.Exists(ctx, base.TaskKey("default", current.ID), current.UniqueKey).Val(); got != 0 {
+		t.Fatalf("evicted current task left %d data keys", got)
 	}
 }
 
@@ -2996,6 +3045,34 @@ func TestListLeaseExpired(t *testing.T) {
 			t.Errorf("%s; ListLeaseExpired(%v) returned %v, want %v;(-want,+got)\n%s",
 				tc.desc, tc.cutoff, got, tc.want, diff)
 		}
+	}
+}
+
+func TestListLeaseExpiredTaskIDsChecksOnlyRequestedTasks(t *testing.T) {
+	r := setup(t)
+	defer r.Close()
+	now := time.Now()
+	expired := h.NewTaskMessageWithQueue("expired", nil, "default")
+	fresh := h.NewTaskMessageWithQueue("fresh", nil, "default")
+	unrequested := h.NewTaskMessageWithQueue("unrequested", nil, "default")
+	h.SeedAllLease(t, r.client, map[string][]base.Z{
+		"default": {
+			{Message: expired, Score: now.Add(-time.Minute).Unix()},
+			{Message: fresh, Score: now.Add(time.Minute).Unix()},
+			{Message: unrequested, Score: now.Add(-time.Minute).Unix()},
+		},
+	})
+
+	got, err := r.ListLeaseExpiredTaskIDs(now, "default", []string{expired.ID, fresh.ID, "missing"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]string{expired.ID}, got); diff != "" {
+		t.Fatalf("expired IDs mismatch (-want +got):\n%s", diff)
+	}
+	got, err = r.ListLeaseExpiredTaskIDs(now, "default", nil)
+	if err != nil || got != nil {
+		t.Fatalf("empty ID check = (%v, %v), want (nil, nil)", got, err)
 	}
 }
 

@@ -12,10 +12,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/rdb"
-	"github.com/hibiken/asynq/internal/testbroker"
-	h "github.com/hibiken/asynq/internal/testutil"
+	"github.com/pars-aria-labs/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/rdb"
+	"github.com/pars-aria-labs/asynq/internal/testbroker"
+	h "github.com/pars-aria-labs/asynq/internal/testutil"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -487,6 +487,7 @@ func TestClientEnqueue(t *testing.T) {
 func TestClientFromRedisClientEnqueue(t *testing.T) {
 	r := setup(t)
 	redisClient := getRedisConnOpt(t).MakeRedisClient().(redis.UniversalClient)
+	defer redisClient.Close()
 	client := NewClientFromRedisClient(redisClient)
 	testClientEnqueue(t, client, r)
 	err := client.Close()

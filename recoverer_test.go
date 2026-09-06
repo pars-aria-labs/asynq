@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/rdb"
-	h "github.com/hibiken/asynq/internal/testutil"
+	"github.com/pars-aria-labs/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/rdb"
+	h "github.com/pars-aria-labs/asynq/internal/testutil"
 )
 
 func TestRecoverer(t *testing.T) {

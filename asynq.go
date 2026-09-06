@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/base"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -314,7 +314,8 @@ type RedisClientOpt struct {
 	// TLS will be negotiated only if this field is set.
 	TLSConfig *tls.Config
 
-	// Prefix prepends Redis keys as `<Prefix>:asynq:*` when set.
+	// Prefix prepends Redis keys as `<Prefix>:asynq:*` when set. Its first
+	// Redis Cluster hash-tag pair, if present, must not be empty (`{}`).
 	Prefix string
 }
 
@@ -391,7 +392,8 @@ type RedisFailoverClientOpt struct {
 	// TLS will be negotiated only if this field is set.
 	TLSConfig *tls.Config
 
-	// Prefix prepends Redis keys as `<Prefix>:asynq:*` when set.
+	// Prefix prepends Redis keys as `<Prefix>:asynq:*` when set. Its first
+	// Redis Cluster hash-tag pair, if present, must not be empty (`{}`).
 	Prefix string
 }
 
@@ -455,7 +457,8 @@ type RedisClusterClientOpt struct {
 	// TLS will be negotiated only if this field is set.
 	TLSConfig *tls.Config
 
-	// Prefix prepends Redis keys as `<Prefix>:asynq:*` when set.
+	// Prefix prepends Redis keys as `<Prefix>:asynq:*` when set. Its first
+	// Redis Cluster hash-tag pair, if present, must not be empty (`{}`).
 	Prefix string
 }
 
@@ -500,22 +503,25 @@ func ParseRedisURI(uri string) (RedisConnOpt, error) {
 }
 
 func redisPrefixFromConnOpt(r RedisConnOpt) string {
+	var prefix string
 	switch opt := r.(type) {
 	case RedisClientOpt:
-		return opt.Prefix
+		prefix = opt.Prefix
 	case *RedisClientOpt:
-		return opt.Prefix
+		prefix = opt.Prefix
 	case RedisFailoverClientOpt:
-		return opt.Prefix
+		prefix = opt.Prefix
 	case *RedisFailoverClientOpt:
-		return opt.Prefix
+		prefix = opt.Prefix
 	case RedisClusterClientOpt:
-		return opt.Prefix
+		prefix = opt.Prefix
 	case *RedisClusterClientOpt:
-		return opt.Prefix
-	default:
-		return ""
+		prefix = opt.Prefix
 	}
+	if err := base.ValidateRedisPrefix(prefix); err != nil {
+		panic(fmt.Sprintf("asynq: invalid Redis key prefix: %v", err))
+	}
+	return prefix
 }
 
 func parseRedisURI(u *url.URL) (RedisConnOpt, error) {

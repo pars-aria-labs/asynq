@@ -15,10 +15,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/rdb"
-	h "github.com/hibiken/asynq/internal/testutil"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/pars-aria-labs/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/rdb"
+	h "github.com/pars-aria-labs/asynq/internal/testutil"
+	"github.com/pars-aria-labs/asynq/internal/timeutil"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -54,6 +54,7 @@ func TestInspectorQueues(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
 	inspector := NewInspector(getRedisConnOpt(t))
+	defer inspector.Close()
 	testInspectorQueues(t, inspector, r)
 }
 
@@ -61,6 +62,7 @@ func TestInspectorFromRedisClientQueues(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
 	redisClient := getRedisConnOpt(t).MakeRedisClient().(redis.UniversalClient)
+	defer redisClient.Close()
 	inspector := NewInspectorFromRedisClient(redisClient)
 	testInspectorQueues(t, inspector, r)
 }
@@ -3682,5 +3684,20 @@ func TestInspectorGroups(t *testing.T) {
 				t.Errorf("Groups = %v, want %v; (-want,+got)\n%s", got, tc.want, diff)
 			}
 		})
+	}
+}
+
+func TestParseOptionNumericTimezone(t *testing.T) {
+	for _, offset := range []int{12600, -12600, 0} {
+		want := time.Date(2026, 9, 6, 12, 0, 0, 0, time.FixedZone("", offset))
+		for _, opt := range []Option{Deadline(want), ProcessAt(want)} {
+			got, err := parseOption(opt.String())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !got.Value().(time.Time).Equal(want) {
+				t.Fatalf("%s: got %v, want %v", opt, got.Value(), want)
+			}
+		}
 	}
 }

@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq/internal/timeutil"
+	"github.com/pars-aria-labs/asynq/internal/timeutil"
 )
 
 func TestTaskKey(t *testing.T) {
@@ -326,6 +326,28 @@ func TestQueueKeyPrefixWithPrefix(t *testing.T) {
 	want := "tenant1:asynq:{default}:"
 	if got != want {
 		t.Fatalf("QueueKeyPrefixWithPrefix() = %q, want %q", got, want)
+	}
+}
+
+func TestRedisClusterHashTagValidation(t *testing.T) {
+	for _, queue := range []string{"default", "queue}suffix", "queue{nested"} {
+		if err := ValidateQueueName(queue); err != nil {
+			t.Errorf("ValidateQueueName(%q) = %v, want nil", queue, err)
+		}
+	}
+	if err := ValidateQueueName("}unsafe"); err == nil {
+		t.Fatal("ValidateQueueName accepted a leading closing brace")
+	}
+
+	for _, prefix := range []string{"", "tenant", "tenant{shared}", "tenant{open", "tenant{shared}{}"} {
+		if err := ValidateRedisPrefix(prefix); err != nil {
+			t.Errorf("ValidateRedisPrefix(%q) = %v, want nil", prefix, err)
+		}
+	}
+	for _, prefix := range []string{"{}", "tenant{}", "tenant{}ignored{shared}"} {
+		if err := ValidateRedisPrefix(prefix); err == nil {
+			t.Errorf("ValidateRedisPrefix(%q) accepted an empty first hash tag", prefix)
+		}
 	}
 }
 

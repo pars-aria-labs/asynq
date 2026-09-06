@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/hibiken/asynq/internal/base"
-	"github.com/hibiken/asynq/internal/errors"
-	"github.com/hibiken/asynq/internal/rdb"
+	"github.com/pars-aria-labs/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/errors"
+	"github.com/pars-aria-labs/asynq/internal/rdb"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -24,6 +25,10 @@ type Inspector struct {
 	// When an Inspector has been created with an existing Redis connection, we do
 	// not want to close it.
 	sharedConnection bool
+	memoryMu         sync.Mutex
+	memorySamples    map[string]queueMemorySample
+	observerMu       sync.RWMutex
+	observer         InspectorOperationObserver
 }
 
 // New returns a new instance of Inspector.
@@ -142,14 +147,22 @@ type QueueInfo struct {
 }
 
 // GetQueueInfo returns current information of the given queue.
+// If the queue does not exist, it returns an error wrapping ErrQueueNotFound.
 func (i *Inspector) GetQueueInfo(queue string) (*QueueInfo, error) {
 	if err := base.ValidateQueueName(queue); err != nil {
 		return nil, err
 	}
 	stats, err := i.rdb.CurrentStats(queue)
+	if errors.IsQueueNotFound(err) {
+		return nil, fmt.Errorf("asynq: %w", ErrQueueNotFound)
+	}
 	if err != nil {
 		return nil, err
 	}
+	return queueInfoFromStats(stats), nil
+}
+
+func queueInfoFromStats(stats *rdb.Stats) *QueueInfo {
 	return &QueueInfo{
 		Queue:          stats.Queue,
 		MemoryUsage:    stats.MemoryUsage,
@@ -169,7 +182,7 @@ func (i *Inspector) GetQueueInfo(queue string) (*QueueInfo, error) {
 		FailedTotal:    stats.FailedTotal,
 		Paused:         stats.Paused,
 		Timestamp:      stats.Timestamp,
-	}, nil
+	}
 }
 
 // DailyStats holds aggregate data for a given day for a given queue.
@@ -360,13 +373,17 @@ func (i *Inspector) ListActiveTasks(queue string, opts ...ListOption) ([]*TaskIn
 	case err != nil:
 		return nil, fmt.Errorf("asynq: %w", err)
 	}
-	expired, err := i.rdb.ListLeaseExpired(time.Now(), queue)
+	ids := make([]string, 0, len(infos))
+	for _, info := range infos {
+		ids = append(ids, info.Message.ID)
+	}
+	expired, err := i.rdb.ListLeaseExpiredTaskIDs(time.Now(), queue, ids)
 	if err != nil {
 		return nil, fmt.Errorf("asynq: %w", err)
 	}
-	expiredSet := make(map[string]struct{}) // set of expired message IDs
-	for _, msg := range expired {
-		expiredSet[msg.ID] = struct{}{}
+	expiredSet := make(map[string]struct{}, len(expired))
+	for _, id := range expired {
+		expiredSet[id] = struct{}{}
 	}
 	var tasks []*TaskInfo
 	for _, i := range infos {
@@ -471,7 +488,8 @@ func (i *Inspector) ListRetryTasks(queue string, opts ...ListOption) ([]*TaskInf
 }
 
 // ListArchivedTasks retrieves archived tasks from the specified queue.
-// Tasks are sorted by LastFailedAt in descending order.
+// Tasks are sorted by the archive sorted-set score in ascending order (oldest
+// archived first). The archive timestamp is not necessarily LastFailedAt.
 //
 // By default, it retrieves the first 30 tasks.
 func (i *Inspector) ListArchivedTasks(queue string, opts ...ListOption) ([]*TaskInfo, error) {
@@ -500,7 +518,8 @@ func (i *Inspector) ListArchivedTasks(queue string, opts ...ListOption) ([]*Task
 }
 
 // ListCompletedTasks retrieves completed tasks from the specified queue.
-// Tasks are sorted by expiration time (i.e. CompletedAt + Retention) in descending order.
+// Tasks are sorted by expiration time (i.e. CompletedAt + Retention) in
+// ascending order, with the soonest-expiring task first.
 //
 // By default, it retrieves the first 30 tasks.
 func (i *Inspector) ListCompletedTasks(queue string, opts ...ListOption) ([]*TaskInfo, error) {
@@ -597,7 +616,7 @@ func (i *Inspector) DeleteAllAggregatingTasks(queue, group string) (int, error) 
 // If the task is not in scheduled state, it returns a non-nil error.
 func (i *Inspector) UpdateTaskPayload(queue, id string, payload []byte) error {
 	if err := base.ValidateQueueName(queue); err != nil {
-		return fmt.Errorf("asynq: %v", err)
+		return fmt.Errorf("asynq: %w", err)
 	}
 	err := i.rdb.UpdateTaskPayload(queue, id, payload)
 	switch {
@@ -606,7 +625,7 @@ func (i *Inspector) UpdateTaskPayload(queue, id string, payload []byte) error {
 	case errors.IsTaskNotFound(err):
 		return fmt.Errorf("asynq: %w", ErrTaskNotFound)
 	case err != nil:
-		return fmt.Errorf("asynq: %v", err)
+		return fmt.Errorf("asynq: %w", err)
 	}
 	return nil
 
@@ -748,7 +767,7 @@ func (i *Inspector) ArchiveAllAggregatingTasks(queue, group string) (int, error)
 // If the task is in already archived, it returns a non-nil error.
 func (i *Inspector) ArchiveTask(queue, id string) error {
 	if err := base.ValidateQueueName(queue); err != nil {
-		return fmt.Errorf("asynq: err")
+		return fmt.Errorf("asynq: %w", err)
 	}
 	err := i.rdb.ArchiveTask(queue, id)
 	switch {
@@ -978,7 +997,7 @@ func parseOption(s string) (Option, error) {
 		}
 		return Timeout(d), nil
 	case "Deadline":
-		t, err := time.Parse(time.UnixDate, arg)
+		t, err := parseOptionTime(arg)
 		if err != nil {
 			return nil, err
 		}
@@ -990,7 +1009,7 @@ func parseOption(s string) (Option, error) {
 		}
 		return Unique(d), nil
 	case "ProcessAt":
-		t, err := time.Parse(time.UnixDate, arg)
+		t, err := parseOptionTime(arg)
 		if err != nil {
 			return nil, err
 		}
@@ -1017,6 +1036,16 @@ func parseOption(s string) (Option, error) {
 	default:
 		return nil, fmt.Errorf("cannot not parse option string %q", s)
 	}
+}
+
+// UnixDate can contain a numeric timezone when the location has no
+// abbreviation (for example Asia/Tehran). Preserve legacy named zones too.
+func parseOptionTime(s string) (time.Time, error) {
+	t, err := time.Parse(time.UnixDate, s)
+	if err == nil {
+		return t, nil
+	}
+	return time.Parse("Mon Jan _2 15:04:05 -0700 2006", s)
 }
 
 func parseOptionFunc(s string) string {

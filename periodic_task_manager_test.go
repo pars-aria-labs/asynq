@@ -70,9 +70,14 @@ func TestNewPeriodicTaskManager(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		_, err := NewPeriodicTaskManager(tc.opts)
+		mgr, err := NewPeriodicTaskManager(tc.opts)
 		if err != nil {
-			t.Errorf("%s; NewPeriodicTaskManager returned error: %v", tc.desc, err)
+			t.Fatalf("%s; NewPeriodicTaskManager returned error: %v", tc.desc, err)
+		}
+		// This constructor test never starts the scheduler, so close its client
+		// directly; Shutdown only closes clients of running schedulers.
+		if err := mgr.s.client.Close(); err != nil {
+			t.Fatal(err)
 		}
 	}
 

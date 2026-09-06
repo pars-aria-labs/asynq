@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq/internal/base"
+	"github.com/pars-aria-labs/asynq/internal/base"
 )
 
 func makeDefaultTaskMessage() *base.TaskMessage {

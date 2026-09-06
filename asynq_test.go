@@ -14,8 +14,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/hibiken/asynq/internal/log"
-	h "github.com/hibiken/asynq/internal/testutil"
+	"github.com/pars-aria-labs/asynq/internal/log"
+	h "github.com/pars-aria-labs/asynq/internal/testutil"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -63,6 +63,7 @@ func setup(tb testing.TB) (r redis.UniversalClient) {
 			DB:   redisDB,
 		})
 	}
+	tb.Cleanup(func() { _ = r.Close() })
 	// Start each test with a clean slate.
 	h.FlushDB(tb, r)
 	return r
@@ -83,6 +84,15 @@ func getRedisConnOpt(tb testing.TB) RedisConnOpt {
 		Addr: redisAddr,
 		DB:   redisDB,
 	}
+}
+
+func TestRedisPrefixFromConnOptRejectsEmptyClusterHashTag(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("redisPrefixFromConnOpt accepted an empty first hash tag")
+		}
+	}()
+	redisPrefixFromConnOpt(RedisClientOpt{Prefix: "tenant{}"})
 }
 
 var sortTaskOpt = cmp.Transformer("SortMsg", func(in []*Task) []*Task {
