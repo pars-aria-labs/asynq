@@ -173,10 +173,10 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
-github.com/pars-aria-labs/asynq v0.27.0 h1:+fG02NT21Z1yFgIBBNHW4NJYvIoT6yIzyAlBiIOWmc4=
-github.com/pars-aria-labs/asynq v0.27.0/go.mod h1:zH13smIvSglLAvq3e3IHVjiLC+fCWyndOff8BaKoQlg=
-github.com/pars-aria-labs/asynq/x v0.27.0 h1:DIpsYtd5LIXZEDwsh0I73RiiKuhvicgmuV2pt48WIog=
-github.com/pars-aria-labs/asynq/x v0.27.0/go.mod h1:jXFnkpGi3wlB+lTtoOn5E3VIf8Eif6uquzETDjr8kv4=
+github.com/pars-aria-labs/asynq v0.27.1 h1:NXRwGIwLeLYnZxgA6ibOg58XJPbp66cTV57Wamq2vtg=
+github.com/pars-aria-labs/asynq v0.27.1/go.mod h1:zH13smIvSglLAvq3e3IHVjiLC+fCWyndOff8BaKoQlg=
+github.com/pars-aria-labs/asynq/x v0.27.1 h1:3iwLzwDbIRpdm0eYS5Ru9r03Z1DhI3w0jWWy1PyCGxM=
+github.com/pars-aria-labs/asynq/x v0.27.1/go.mod h1:7goXneEVuVh/wqKd1dIxT0rpRaGHRpgC5fpldxwQK/E=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pelletier/go-toml v1.2.0 h1:T5zMGML61Wp+FlcbWjRDT7yAxhJNAiPPLOFECq181zc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
