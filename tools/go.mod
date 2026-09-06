@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/MakeNowJust/heredoc/v2 v2.0.1
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.19.0
 	github.com/gdamore/tcell/v2 v2.5.1
 	github.com/google/go-cmp v0.7.0
 	github.com/mattn/go-runewidth v0.0.16
@@ -30,7 +30,7 @@ require (
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
