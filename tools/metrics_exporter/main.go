@@ -20,6 +20,7 @@ var (
 	flagRedisDB       int
 	flagRedisPassword string
 	flagRedisUsername string
+	flagRedisPrefix   string
 	flagPort          int
 )
 
@@ -28,6 +29,7 @@ func init() {
 	flag.IntVar(&flagRedisDB, "redis-db", 0, "redis DB number to use")
 	flag.StringVar(&flagRedisPassword, "redis-password", "", "password used to connect to redis server")
 	flag.StringVar(&flagRedisUsername, "redis-username", "", "username used to connect to redis server")
+	flag.StringVar(&flagRedisPrefix, "redis-prefix", "", "Redis key prefix used by Asynq")
 	flag.IntVar(&flagPort, "port", 9876, "port to use for the HTTP server")
 }
 
@@ -36,12 +38,7 @@ func main() {
 	// Using NewPedanticRegistry here to test the implementation of Collectors and Metrics.
 	reg := prometheus.NewPedanticRegistry()
 
-	inspector := asynq.NewInspector(asynq.RedisClientOpt{
-		Addr:     flagRedisAddr,
-		DB:       flagRedisDB,
-		Password: flagRedisPassword,
-		Username: flagRedisUsername,
-	})
+	inspector := asynq.NewInspector(redisClientOptFromFlags())
 	defer inspector.Close()
 	inspectorMetrics := metrics.NewInspectorMetricsCollector()
 	inspector.SetOperationObserver(inspectorMetrics)
@@ -57,4 +54,14 @@ func main() {
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	log.Printf("exporter server is listening on port: %d\n", flagPort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", flagPort), nil))
+}
+
+func redisClientOptFromFlags() asynq.RedisClientOpt {
+	return asynq.RedisClientOpt{
+		Addr:     flagRedisAddr,
+		DB:       flagRedisDB,
+		Password: flagRedisPassword,
+		Username: flagRedisUsername,
+		Prefix:   flagRedisPrefix,
+	}
 }

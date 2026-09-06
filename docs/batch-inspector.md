@@ -275,6 +275,19 @@ go-redis may use additional network exchanges.
 The observer runs synchronously and may be invoked concurrently. A custom
 observer must be concurrency-safe, should return quickly, and must not call
 back into the same Inspector. Its panic is recovered so monitoring cannot
-change the Redis result. If you use the bundled exporter, start it with
-`-redis-addr`, expose port `9876`, and configure your Prometheus server to
-scrape that address; a Prometheus query endpoint is not a push destination.
+change the Redis result. If you use the bundled exporter, start it with the
+same Redis address, database, credentials, and prefix as the application. For
+example:
+
+```sh
+(cd tools && go run ./metrics_exporter \
+  -redis-addr=127.0.0.1:6379 \
+  -redis-db=2 \
+  -redis-prefix=billing-prod \
+  -port=9876)
+```
+
+Configure Prometheus to scrape port `9876`; a Prometheus query endpoint is not
+a push destination. The bundled exporter currently supports a standalone
+Redis connection. For Redis Cluster, embed the collectors in an application
+that constructs the Inspector with `RedisClusterClientOpt`.

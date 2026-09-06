@@ -38,6 +38,7 @@ var (
 	db       int
 	password string
 	username string
+	prefix   string
 
 	useRedisCluster bool
 	clusterAddrs    string
@@ -307,11 +308,12 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.SetVersionTemplate(versionOutput)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file to set flag defaut values (default is $HOME/.asynq.yaml)")
-	rootCmd.PersistentFlags().StringVarP(&uri, "uri", "u", "127.0.0.1:6379", "Redis server URI")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file to set flag default values (default is $HOME/.asynq.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&uri, "uri", "u", "127.0.0.1:6379", "Redis server address in host:port form")
 	rootCmd.PersistentFlags().IntVarP(&db, "db", "n", 0, "Redis database number (default is 0)")
 	rootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "Password to use when connecting to redis server")
 	rootCmd.PersistentFlags().StringVarP(&username, "username", "U", "", "Username to use when connecting to Redis (ACL username)")
+	rootCmd.PersistentFlags().StringVar(&prefix, "prefix", "", "Redis key prefix used by Asynq")
 	rootCmd.PersistentFlags().BoolVar(&useRedisCluster, "cluster", false, "Connect to redis cluster")
 	rootCmd.PersistentFlags().StringVar(&clusterAddrs, "cluster_addrs",
 		"127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002,127.0.0.1:7003,127.0.0.1:7004,127.0.0.1:7005",
@@ -326,6 +328,7 @@ func init() {
 	viper.BindPFlag("db", rootCmd.PersistentFlags().Lookup("db"))
 	viper.BindPFlag("password", rootCmd.PersistentFlags().Lookup("password"))
 	viper.BindPFlag("username", rootCmd.PersistentFlags().Lookup("username"))
+	viper.BindPFlag("prefix", rootCmd.PersistentFlags().Lookup("prefix"))
 	viper.BindPFlag("cluster", rootCmd.PersistentFlags().Lookup("cluster"))
 	viper.BindPFlag("cluster_addrs", rootCmd.PersistentFlags().Lookup("cluster_addrs"))
 	viper.BindPFlag("tls", rootCmd.PersistentFlags().Lookup("tls"))
@@ -379,7 +382,7 @@ func createRDB() *rdb.RDB {
 			TLSConfig: getTLSConfig(),
 		})
 	}
-	return rdb.NewRDB(c)
+	return rdb.NewRDB(c, viper.GetString("prefix"))
 }
 
 // createClient creates a Client instance using flag values and returns it.
@@ -400,6 +403,7 @@ func getRedisConnOpt() asynq.RedisConnOpt {
 			Password:  viper.GetString("password"),
 			Username:  viper.GetString("username"),
 			TLSConfig: getTLSConfig(),
+			Prefix:    viper.GetString("prefix"),
 		}
 	}
 	return asynq.RedisClientOpt{
@@ -408,6 +412,7 @@ func getRedisConnOpt() asynq.RedisConnOpt {
 		Password:  viper.GetString("password"),
 		Username:  viper.GetString("username"),
 		TLSConfig: getTLSConfig(),
+		Prefix:    viper.GetString("prefix"),
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/pars-aria-labs/asynq/internal/rdb"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // statsCmd represents the stats command
@@ -102,7 +103,7 @@ func stats(cmd *cobra.Command, args []string) error {
 		stats = append(stats, s)
 	}
 	var info map[string]string
-	if useRedisCluster {
+	if viper.GetBool("cluster") {
 		info, err = r.RedisClusterInfo()
 	} else {
 		info, err = r.RedisInfo()
@@ -139,7 +140,7 @@ func stats(cmd *cobra.Command, args []string) error {
 	printSuccessFailureStats(&aggStats)
 	fmt.Println()
 
-	if useRedisCluster {
+	if viper.GetBool("cluster") {
 		bold.Println("Redis Cluster Info")
 		printClusterInfo(info)
 	} else {

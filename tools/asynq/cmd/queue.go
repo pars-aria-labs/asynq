@@ -13,6 +13,7 @@ import (
 	"github.com/pars-aria-labs/asynq"
 	"github.com/pars-aria-labs/asynq/internal/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const separator = "================================================="
@@ -114,7 +115,7 @@ func queueList(cmd *cobra.Command, args []string) error {
 	var qs []*queueInfo
 	for _, qname := range queues {
 		q := queueInfo{name: qname}
-		if useRedisCluster {
+		if viper.GetBool("cluster") {
 			keyslot, err := inspector.ClusterKeySlot(qname)
 			if err != nil {
 				fmt.Printf("error: could not get cluster keyslot for %q\n", qname)
@@ -130,7 +131,7 @@ func queueList(cmd *cobra.Command, args []string) error {
 		}
 		qs = append(qs, &q)
 	}
-	if useRedisCluster {
+	if viper.GetBool("cluster") {
 		printTable(
 			[]string{"Queue", "Cluster KeySlot", "Cluster Nodes"},
 			func(w io.Writer, tmpl string) {

@@ -1,65 +1,158 @@
 # Asynq CLI
 
-Asynq CLI is a command line tool to monitor the queues and tasks managed by `asynq` package.
+`asynq` is the terminal client for inspecting and administering queues, tasks,
+groups, cron entries, and servers created by
+[`github.com/pars-aria-labs/asynq`](https://github.com/pars-aria-labs/asynq).
+Use the same Redis endpoint, credentials, database, and key prefix as your
+producers and workers.
 
-## Table of Contents
+## Install
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Config File](#config-file)
+The CLI is a separate Go module. Pin it to the release used by your services:
 
-## Installation
-
-In order to use the tool, compile it using the following command:
-
-go install github.com/pars-aria-labs/asynq/tools/asynq@latest
-
-This will create the asynq executable under your `$GOPATH/bin` directory.
-
-## Usage
-
-### Commands
-
-To view details on any command, use `asynq help <command> <subcommand>`.
-
-- `asynq dash`
-- `asynq stats`
-- `asynq queue [ls inspect history rm pause unpause]`
-- `asynq task [ls cancel delete archive run deleteall archiveall runall]`
-- `asynq server [ls]`
-
-### Global flags
-
-Asynq CLI needs to connect to a redis-server to inspect the state of queues and tasks. Use flags to specify the options to connect to the redis-server used by your application.
-To connect to a redis cluster, pass `--cluster` and `--cluster_addrs` flags.
-
-By default, CLI will try to connect to a redis server running at `localhost:6379`.
-
-```
-      --config string          config file to set flag defaut values (default is $HOME/.asynq.yaml)
-  -n, --db int                 redis database number (default is 0)
-  -h, --help                   help for asynq
-  -U, --username string        username to use when connecting to redis server
-  -p, --password string        password to use when connecting to redis server
-  -u, --uri string             redis server URI (default "127.0.0.1:6379")
-
-      --cluster                connect to redis cluster
-      --cluster_addrs string   list of comma-separated redis server addresses
+```sh
+go install github.com/pars-aria-labs/asynq/tools/asynq@v0.27.1
 ```
 
-## Config File
+Go installs the executable in `GOBIN`, or in `$GOPATH/bin` when `GOBIN` is not
+set. Confirm the installed version with:
 
-You can use a config file to set default values for the flags.
+```sh
+asynq version
+```
 
-By default, `asynq` will try to read config file located in
-`$HOME/.asynq.(yml|json)`. You can specify the file location via `--config` flag.
+## Commands
 
-Config file example:
+Run `asynq <command> <subcommand> --help` for the complete flags and examples
+for an operation.
+
+| Command | Subcommands | Purpose |
+| --- | --- | --- |
+| `cron` | `list`, `history` | Inspect scheduler entries and their history |
+| `dash` | — | Open the interactive terminal dashboard |
+| `group` | `list` | List aggregation groups for a queue |
+| `queue` | `list`, `inspect`, `history`, `remove`, `pause`, `resume` | Inspect and administer queues |
+| `server` | `list` | List active Asynq servers |
+| `stats` | — | Show the current aggregate state |
+| `task` | `list`, `inspect`, `enqueue`, `cancel`, `delete`, `archive`, `run`, `deleteall`, `archiveall`, `runall` | Inspect and administer tasks |
+
+For example:
+
+```sh
+asynq queue list
+asynq task list --queue=critical --state=archived
+asynq task inspect --queue=critical --id=TASK_ID
+asynq group list --queue=critical
+asynq cron list
+```
+
+To enqueue a JSON task from a shell, pass JSON as one quoted argument so the
+shell does not split it:
+
+```sh
+asynq task enqueue \
+  --type_name=email:welcome \
+  --payload='{"user_id":42}' \
+  --queue=critical \
+  --retry=5
+```
+
+## Redis connection flags
+
+Connection flags are global and may be placed before or after a subcommand.
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `-u`, `--uri` | `127.0.0.1:6379` | Standalone Redis address in `host:port` form |
+| `-n`, `--db` | `0` | Redis database for a standalone connection |
+| `-U`, `--username` | empty | Redis ACL username |
+| `-p`, `--password` | empty | Redis password |
+| `--prefix` | empty | The exact `RedisClientOpt.Prefix` used by the application |
+| `--cluster` | `false` | Use Redis Cluster instead of a standalone connection |
+| `--cluster_addrs` | six local addresses on ports 7000–7005 | Comma-separated cluster seed addresses |
+| `--tls` | `false` | Enable TLS |
+| `--tls_server` | empty | Server name used for TLS certificate validation; also enables TLS |
+| `--insecure` | `false` | Skip TLS certificate validation; intended only for controlled development |
+| `--config` | `$HOME/.asynq.yaml` | Read defaults from a YAML, JSON, or other Viper-supported config file |
+
+The CLI does not discover application settings. A mismatched database or
+prefix looks like an empty Asynq installation even when tasks exist elsewhere
+in Redis.
+
+### Standalone Redis with a prefix
+
+If the application uses `Prefix: "billing-prod"`, pass the same value:
+
+```sh
+asynq queue list \
+  --uri=127.0.0.1:6379 \
+  --db=2 \
+  --prefix=billing-prod
+```
+
+The prefix is a namespace, not a queue name. Do not include the generated
+`:asynq:` portion. Prefixes whose first Redis hash-tag is empty, such as
+`tenant{}`, are rejected because they cannot safely group queue keys in Redis
+Cluster.
+
+### Redis Cluster
+
+Redis Cluster supports database 0 only, so `--db` is not used in cluster mode:
+
+```sh
+asynq stats \
+  --cluster \
+  --cluster_addrs=redis-0:7000,redis-1:7001,redis-2:7002 \
+  --prefix=billing-prod
+```
+
+Do not put spaces between seed addresses. Every key for a queue is assigned a
+cluster hash tag by Asynq; the prefix must match the one used by producers and
+workers.
+
+### TLS and ACL authentication
+
+For a certificate issued to `redis.internal.example`:
+
+```sh
+asynq server list \
+  --uri=redis.internal.example:6380 \
+  --username=observer \
+  --tls_server=redis.internal.example \
+  --prefix=billing-prod
+```
+
+Prefer a protected config file or your process supervisor for secrets instead
+of putting `--password` in shell history. `--insecure` disables certificate
+verification and should not be used in production.
+
+## Config file
+
+By default, the CLI looks for `$HOME/.asynq.yaml` (and other formats supported
+by Viper). Use `--config=/path/to/file.yaml` to select another file. Flag values
+override config defaults.
 
 ```yaml
-uri: 127.0.0.1:6379
+uri: redis.internal.example:6380
 db: 2
-password: mypassword
+username: observer
+password: replace-with-a-secret
+prefix: billing-prod
+tls: true
+tls_server: redis.internal.example
+insecure: false
 ```
 
-This will set the default values for `--uri`, `--db`, and `--password` flags.
+A cluster configuration uses the same key names as the long flags:
+
+```yaml
+cluster: true
+cluster_addrs: redis-0:7000,redis-1:7001,redis-2:7002
+prefix: billing-prod
+username: observer
+password: replace-with-a-secret
+tls: true
+```
+
+Keep configuration files containing credentials outside source control and
+restrict their filesystem permissions.
