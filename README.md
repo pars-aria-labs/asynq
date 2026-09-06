@@ -25,9 +25,9 @@ license text, Git history, and attribution are retained. All current module,
 documentation, issue, and contribution links use the canonical repository.
 
 See the [migration guide](docs/migrating-to-pars-aria-labs.md) and
-[current fork release notes](docs/release-notes-v0.27.1.md) for compatibility
-details. The [v0.27.0 notes](docs/release-notes-v0.27.0.md) retain the complete
-history of the initial canonical release.
+[v1.0.0-beta.1 release notes](docs/release-notes-v1.0.0-beta.1.md) for
+compatibility details. The [v0.27.1 notes](docs/release-notes-v0.27.1.md)
+describe the latest pre-v1 patch release.
 
 ## What this fork adds
 
@@ -84,16 +84,18 @@ bounded Inspector operations, migration, observability, and soak testing.
 
 ## Install or migrate
 
-The module currently targets Go 1.25.
+The module targets Go 1.25. The current preview is `v1.0.0-beta.1`; opt in by
+pinning the beta explicitly:
 
 ```sh
-go get github.com/pars-aria-labs/asynq@v0.27.1
-go get github.com/pars-aria-labs/asynq/x@v0.27.1
+go get github.com/pars-aria-labs/asynq@v1.0.0-beta.1
+go get github.com/pars-aria-labs/asynq/x@v1.0.0-beta.1
 ```
 
 The second command installs the optional `x` module used by packages such as
 `x/metrics`. If your application does not import an `x` package, you can omit
-that command.
+that command. Production users who are not evaluating the beta can remain on
+the `v0.27.1` release line.
 
 The canonical import path is shown below. The exported package name remains
 `asynq`:
@@ -335,7 +337,7 @@ for workspace and smoke-test instructions.
 Install the CLI from the canonical module:
 
 ```sh
-go install github.com/pars-aria-labs/asynq/tools/asynq@v0.27.1
+go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.0-beta.1
 ```
 
 Run `asynq dash` for the terminal dashboard. See the
@@ -343,12 +345,16 @@ Run `asynq dash` for the terminal dashboard. See the
 Pinning the version makes local, CI, and production administration environments
 install the same reviewed CLI build.
 
+Maintainers can reproduce the tag and GitHub Actions publication sequence by
+following the [beta release guide](docs/releasing-beta.md).
+
 ## Stability and compatibility
 
-The module is still pre-v1, so public APIs may change before `v1.0.0`.
-The current CI target is Go 1.25 with Redis 7.4. Standalone and Redis Cluster
-paths are tested separately; because Asynq relies on Lua scripts, validate your
-specific topology and upgrade against staging data before production rollout.
+`v1.0.0-beta.1` is a preview of the v1 contract, so public API details may
+still change before final `v1.0.0`. The current CI target is Go 1.25 with Redis
+7.4. Standalone and Redis Cluster paths are tested separately; because Asynq
+relies on Lua scripts, validate your specific topology and upgrade against
+staging data before production rollout.
 
 Redis keys and serialized task messages remain compatible with the fork base
 when endpoint, database, and prefix are unchanged. No automatic data migration

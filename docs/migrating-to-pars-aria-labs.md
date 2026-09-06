@@ -24,10 +24,10 @@ Use the canonical module import in Go files:
 import "github.com/pars-aria-labs/asynq"
 ```
 
-Then update the dependency to the canonical release:
+To evaluate the v1 beta, pin the canonical preview explicitly:
 
 ```sh
-go get github.com/pars-aria-labs/asynq@v0.27.1
+go get github.com/pars-aria-labs/asynq@v1.0.0-beta.1
 go mod tidy
 go test ./...
 ```
@@ -41,8 +41,12 @@ import "github.com/pars-aria-labs/asynq/x/metrics"
 Then pin the matching optional-module release before tidying:
 
 ```sh
-go get github.com/pars-aria-labs/asynq/x@v0.27.1
+go get github.com/pars-aria-labs/asynq/x@v1.0.0-beta.1
 ```
+
+Keep `v0.27.1` in production when you are not intentionally evaluating the
+beta. Go prefers a stable release over a pre-release for an unqualified update;
+pin the beta explicitly when you want to test it.
 
 Do not use a permanent `replace` directive to disguise the old module as the
 new one. Go's `internal` package rules and self-imports make that arrangement

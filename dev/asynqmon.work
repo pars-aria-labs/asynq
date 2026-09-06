@@ -7,6 +7,6 @@ use (
 )
 
 replace (
-	github.com/pars-aria-labs/asynq v0.27.1 => ..
+	github.com/pars-aria-labs/asynq v1.0.0-beta.1 => ..
 	github.com/pars-aria-labs/asynq/x v0.27.1 => ../x
 )

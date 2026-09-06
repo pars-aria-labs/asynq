@@ -26,8 +26,8 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/pars-aria-labs/asynq v0.27.1 h1:NXRwGIwLeLYnZxgA6ibOg58XJPbp66cTV57Wamq2vtg=
-github.com/pars-aria-labs/asynq v0.27.1/go.mod h1:zH13smIvSglLAvq3e3IHVjiLC+fCWyndOff8BaKoQlg=
+github.com/pars-aria-labs/asynq v1.0.0-beta.1 h1:ajrCaEID4JDcmWv2qDQtl8sqc9QHVHDTlq/sFuR0XEA=
+github.com/pars-aria-labs/asynq v1.0.0-beta.1/go.mod h1:zH13smIvSglLAvq3e3IHVjiLC+fCWyndOff8BaKoQlg=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/prometheus/client_golang v1.20.5 h1:cxppBPuYhUnsO6yo/aoRol4L7q7UFfdm+bR9r+8l63Y=

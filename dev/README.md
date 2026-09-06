@@ -1,8 +1,8 @@
 # Testing with the sibling asynqmon checkout
 
 The Inspector optimization and bounded batch-operation phases are complete.
-See `docs/handoff/README.fa.md` for the release status and full validation
-record.
+The current preview is `v1.0.0-beta.1`. See `docs/handoff/README.fa.md` for the
+release status and full validation record.
 
 Keep `asynq` and `asynqmon` in the same parent directory. With Go 1.25 or
 newer on PATH, run this from the asynq repository:
@@ -14,8 +14,9 @@ make test-asynqmon
 The explicit `dev/asynqmon.work` workspace selects the local asynq module and
 its `x` module (including the Prometheus exporter). Asynqmon imports and pins
 the canonical `github.com/pars-aria-labs/asynq` modules at `v0.27.1`; the
-workspace maps those versions to the sibling source trees for simultaneous
-development. A `GOWORK=off` build verifies the released dependency graph
+version-specific workspace replacements select the beta core and local `x`
+source for simultaneous development without changing either module file. A
+`GOWORK=off` build verifies the released dependency graph
 without local overrides.
 
 To run the monitor with these local changes:

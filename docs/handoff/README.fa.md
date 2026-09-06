@@ -4,7 +4,9 @@
 ریپوی اصلی فعلی: `/root/src`
 ریپوی UI/sibling فعلی: `/root/asynqmon`
 
-این handoff وضعیت انتشار patch `v0.27.1` را ثبت می‌کند. کارهای اجرایی P0 تا P5، اصلاح‌های نهایی ابزارها و کنترل‌های انتشار انجام شده‌اند. ماژول‌های root، `x` و `tools` با tagهای هم‌نسخه منتشر می‌شوند و tagهای اولیهٔ `v0.27.0` نیز بدون جابه‌جایی حفظ شده‌اند. تست کامل، vet، race، soak هم‌زمان، تست و build رابط کاربری، smoke یکپارچه و اجرای واقعی Redis Cluster سه‌گرهی پاس شده‌اند.
+این handoff وضعیت patch پایدار `v0.27.1` و آماده‌سازی preview با تگ `v1.0.0-beta.1` را ثبت می‌کند. کارهای اجرایی P0 تا P5، اصلاح‌های نهایی ابزارها و کنترل‌های انتشار انجام شده‌اند. ماژول‌های root، `x` و `tools` با tagهای هم‌نسخه منتشر می‌شوند و tagهای قبلی نیز بدون جابه‌جایی حفظ شده‌اند. تست کامل، vet، race، soak هم‌زمان، تست و build رابط کاربری، smoke یکپارچه و اجرای واقعی Redis Cluster سه‌گرهی برای خط پایدار پاس شده‌اند؛ workflow انتشار همین کنترل‌ها را روی commit بتا دوباره اجرا می‌کند.
+
+انتشار beta با workflow اختصاصی GitHub Actions انجام می‌شود: ابتدا تطابق tag و نسخه‌ی embedded کنترل می‌شود، سپس تست‌های race، vet و soak اجرا می‌شوند؛ در پایان CLI برای شش ترکیب سیستم‌عامل/معماری build و همراه `SHA256SUMS` به‌صورت GitHub Pre-release منتشر می‌شود.
 
 هویت ماژول Asynqmon نیز از نسخهٔ `v0.8.0` برابر `github.com/pars-aria-labs/asynqmon` است؛ بنابراین کد برنامه، ابزار smoke و نمونه‌های README همگی از namespace سازمان استفاده می‌کنند.
 
@@ -92,9 +94,9 @@
   asynqmon/  # sibling UI/server
 ```
 
-workspace، ماژول اصلی asynq، ماژول `x` و sibling را کنار هم قرار می‌دهد. importهای Go در asynqmon اکنون مستقیماً از مسیر canonical یعنی `github.com/pars-aria-labs/asynq` و `github.com/pars-aria-labs/asynq/x` استفاده می‌کنند. فایل‌های `go.mod` نسخهٔ واقعی `v0.27.1` را pin کرده‌اند؛ replaceهای version-specific فقط برای توسعهٔ هم‌زمان checkoutهای محلی در workspace باقی مانده‌اند و برای مصرف نسخهٔ منتشرشده لازم نیستند.
+workspace، ماژول اصلی asynq، ماژول `x` و sibling را کنار هم قرار می‌دهد. importهای Go در asynqmon اکنون مستقیماً از مسیر canonical یعنی `github.com/pars-aria-labs/asynq` و `github.com/pars-aria-labs/asynq/x` استفاده می‌کنند. graph انتشار root، `x` و `tools` روی `v1.0.0-beta.1` هم‌نسخه است؛ Asynqmon `v0.8.0` برای خط پایدار خود dependencyهای `v0.27.1` را نگه می‌دارد. replaceهای version-specific فقط برای توسعه و آزمون هم‌زمان checkoutهای محلی هستند و در مصرف نسخهٔ منتشرشده نقشی ندارند.
 
-tagهای canonical در remote منتشر شده‌اند. ماژول‌های `x` و `tools` و همچنین Asynqmon پس از `go mod tidy` با `GOWORK=off` و `GOPROXY=direct` تست و vet شده‌اند؛ در نتیجه graph انتشار به workspace محلی وابسته نیست.
+tagهای canonical خط `v0.27.1` در remote منتشر شده‌اند و graph پایدار با `GOWORK=off` آزموده شده است. برای beta، سه tag هم-SHA به‌صورت atomic منتشر می‌شوند؛ سپس workflow و پیش از ساخت GitHub Pre-release، graph مستقل root، `x` و `tools` را بدون workspace محلی تست و vet می‌کند.
 
 اگر parent path تغییر کرد، مسیر `../../asynqmon` در `dev/asynqmon.work` نیز باید متناسب با آن به‌روزرسانی شود.
 

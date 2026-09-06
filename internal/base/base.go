@@ -14,16 +14,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pars-aria-labs/asynq/internal/errors"
-	pb "github.com/pars-aria-labs/asynq/internal/proto"
-	"github.com/pars-aria-labs/asynq/internal/timeutil"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/pars-aria-labs/asynq/internal/errors"
+	pb "github.com/pars-aria-labs/asynq/internal/proto"
+	"github.com/pars-aria-labs/asynq/internal/timeutil"
 )
 
 // Version of asynq library and CLI.
-const Version = "0.27.1"
+const Version = "1.0.0-beta.1"
 
 // DefaultQueueName is the queue name used if none are specified by user.
 const DefaultQueueName = "default"

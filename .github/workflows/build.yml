@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      asynqmon_ref:
+        description: Immutable Asynqmon revision used by release validation
+        required: false
+        type: string
+        default: main
 
 permissions:
   contents: read
@@ -13,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: 1.25.x
+  GO_VERSION: 1.25.0
   NODE_VERSION: "24"
   REDIS_IMAGE: redis:7.4-alpine
   REDIS_CLUSTER_ADDRS: 127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002
@@ -198,6 +205,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: pars-aria-labs/asynqmon
+          ref: ${{ inputs.asynqmon_ref || 'main' }}
           path: asynqmon
 
       - name: Set up Go

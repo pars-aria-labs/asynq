@@ -61,9 +61,8 @@ func NewTask(typename string, payload []byte, opts ...Option) *Task {
 
 // NewTaskWithHeaders returns a new Task given a type name, payload data, and headers.
 // Options can be passed to configure task processing behavior.
-// TODO: In the next major (breaking) release, fold this functionality into NewTask
-//
-//	so that headers are supported directly. After that, remove this method.
+// TODO: Revisit folding headers into NewTask in a future breaking release.
+// The v1 beta retains this constructor to preserve source compatibility.
 func NewTaskWithHeaders(typename string, payload []byte, headers map[string]string, opts ...Option) *Task {
 	return &Task{
 		typename: typename,

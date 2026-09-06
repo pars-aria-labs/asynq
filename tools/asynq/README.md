@@ -8,11 +8,15 @@ producers and workers.
 
 ## Install
 
-The CLI is a separate Go module. Pin it to the release used by your services:
+The CLI is a separate Go module. To evaluate the v1 beta, pin it to the same
+preview used by your services:
 
 ```sh
-go install github.com/pars-aria-labs/asynq/tools/asynq@v0.27.1
+go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.0-beta.1
 ```
+
+Use `v0.27.1` instead when administering services that have not moved to the
+beta release line.
 
 Go installs the executable in `GOBIN`, or in `$GOPATH/bin` when `GOBIN` is not
 set. Confirm the installed version with:

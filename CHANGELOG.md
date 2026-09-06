@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.1] - 2026-09-06
+
+### Added
+
+- Add a tag-driven GitHub Actions workflow that validates beta source, runs
+  race-enabled tests and the Inspector soak harness, builds six cross-platform
+  CLI archives, generates SHA-256 checksums and provenance attestations, and
+  publishes a GitHub pre-release.
+
+### Changed
+
+- Set the embedded library and CLI version to `1.0.0-beta.1`.
+- Promote the bounded Inspector, Redis namespace, Redis Cluster, telemetry,
+  CLI, exporter, and Asynqmon work to the first public v1 preview.
+
+### Compatibility
+
+- Keep the Redis key layout and serialized task format compatible with the
+  `v0.27.x` line. No automatic Redis migration is required solely for this
+  beta.
+- Mark the release as a preview: public API details may still change before
+  final `v1.0.0`.
+
+See the [v1.0.0-beta.1 release notes](docs/release-notes-v1.0.0-beta.1.md).
+
 ## [0.27.1] - 2026-09-06
 
 ### Added
@@ -327,7 +352,7 @@ See [the full release notes](docs/release-notes-v0.27.0.md) and
 
 ### Changed
 
-- `Inspector` related code are moved to subpackage "github.com/hibken/asynq/inspeq".
+- `Inspector` related code are moved to subpackage "github.com/pars-aria-labs/asynq/inspeq".
 - `RedisConnOpt` interface has changed slightly. If you have been passing `RedisClientOpt`, `RedisFailoverClientOpt`, or `RedisClusterClientOpt` as a pointer,
   update your code to pass as a value.
 - `ErrorMsg` field in `RetryTask` and `ArchivedTask` was renamed to `LastError`.
