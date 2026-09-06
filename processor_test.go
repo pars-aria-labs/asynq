@@ -225,7 +225,7 @@ func TestProcessorSuccessWithMultipleQueues(t *testing.T) {
 	}
 }
 
-// Historical upstream regression: https://github.com/hibiken/asynq/issues/166
+// Regression test for preserving large JSON numbers in task payloads.
 func TestProcessTasksWithLargeNumberInPayload(t *testing.T) {
 	r := setup(t)
 	defer r.Close()

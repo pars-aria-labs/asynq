@@ -5,10 +5,10 @@
 from `v0.27.0` and aligns the published source, operational tools, tutorials,
 and multi-node release checks.
 
-The source lineage is unchanged: this independently maintained fork descends
-from `hibiken/asynq`, with imported history baseline commit `2f4fd0a`. It is not
-an official upstream Asynq release; the original MIT license, notices,
-attribution, and Git history remain intact.
+The source lineage remains available in the imported Git history, whose
+baseline is commit `2f4fd0a`. This independently maintained fork uses
+`github.com/pars-aria-labs/asynq` as its sole canonical module identity. The
+original MIT license, notices, attribution, and Git history remain intact.
 
 ## What changed
 

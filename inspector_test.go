@@ -963,7 +963,7 @@ func TestInspectorListRetryTasks(t *testing.T) {
 			qname: "default",
 			want:  []*TaskInfo(nil),
 		},
-		// TODO(hibiken): ErrQueueNotFound when queue doesn't exist
+		// TODO: return ErrQueueNotFound when the queue does not exist.
 	}
 
 	for _, tc := range tests {

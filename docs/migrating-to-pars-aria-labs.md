@@ -6,23 +6,22 @@ application code changes only at import and dependency boundaries.
 
 ## Source lineage
 
-This repository is derived from the MIT-licensed
-[`hibiken/asynq`](https://github.com/hibiken/asynq) project. The imported
-history baseline is commit
+This repository retains its imported MIT-licensed Git history. The maintained
+source and module live at
+[`pars-aria-labs/asynq`](https://github.com/pars-aria-labs/asynq), and the
+imported history baseline is commit
 [`2f4fd0a`](https://github.com/pars-aria-labs/asynq/commit/2f4fd0a).
 Original copyright notices, commit history, license text, and historical
-issue/PR links are retained.
+change references are retained.
 
-This fork is maintained independently and is not an official release of the
-upstream project.
+This fork is maintained independently under its canonical repository identity.
 
 ## Updating an application
 
-Replace the module import in Go files:
+Use the canonical module import in Go files:
 
-```diff
--import "github.com/hibiken/asynq"
-+import "github.com/pars-aria-labs/asynq"
+```go
+import "github.com/pars-aria-labs/asynq"
 ```
 
 Then update the dependency to the canonical release:
@@ -33,11 +32,10 @@ go mod tidy
 go test ./...
 ```
 
-If the application imports optional packages, migrate them in the same way:
+Optional packages use the same canonical module namespace:
 
-```diff
--import "github.com/hibiken/asynq/x/metrics"
-+import "github.com/pars-aria-labs/asynq/x/metrics"
+```go
+import "github.com/pars-aria-labs/asynq/x/metrics"
 ```
 
 Then pin the matching optional-module release before tidying:

@@ -81,7 +81,7 @@ importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` �
 
 - مسیر canonical ماژول‌های root، `x` و `tools` به `github.com/pars-aria-labs/asynq` منتقل شد و package identifier همچنان `asynq` باقی ماند.
 - importهای source، test، example، ابزار، protobuf metadata و مصرف‌کننده‌ی Asynqmon هماهنگ شدند.
-- README منبع اصلی `hibiken/asynq` و مبنای دقیق تاریخچه‌ی واردشده در commit `2f4fd0a` را ثبت می‌کند و تغییرهای fork را همراه نمونه‌های آموزشی توضیح می‌دهد.
+- README سورس canonical `pars-aria-labs/asynq` و مبنای دقیق تاریخچه‌ی واردشده در commit `2f4fd0a` را ثبت می‌کند و تغییرهای fork را همراه نمونه‌های آموزشی توضیح می‌دهد.
 - release note، راهنمای migration و compile-time contract test برای API عمومی اضافه شد.
 - soak test اختیاری producer، mutation، stats و `SCRIPT FLUSH` هم‌زمان را با namespace یکتا و cleanup محدود به همان namespace اجرا می‌کند.
 - اجرای واقعی soak نهایی پاس شد: 2499 task enqueue و دقیقاً 2499 task پردازش شد؛ 3106 batch call، 120 stats read و 16 script flush ثبت شد.

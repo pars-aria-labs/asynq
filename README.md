@@ -12,18 +12,17 @@ A simple, reliable, and efficient Redis-backed distributed task queue for Go.
 Clients enqueue tasks, servers process them concurrently, and Redis coordinates
 delivery, scheduling, retries, and recovery across processes and machines.
 
-## Source and fork provenance
+## Source and repository identity
 
-- Original upstream: [`hibiken/asynq`](https://github.com/hibiken/asynq).
+- Canonical source and module:
+  [`pars-aria-labs/asynq`](https://github.com/pars-aria-labs/asynq).
 - Imported history baseline: commit
   [`2f4fd0a`](https://github.com/pars-aria-labs/asynq/commit/2f4fd0a).
-- Canonical module maintained here: `github.com/pars-aria-labs/asynq`.
 
 This is an independently maintained fork and is **not an official upstream
 Asynq release**. The project remains MIT-licensed; original copyright notices,
-license text, Git history, and attribution are retained. Links marked
-"upstream wiki" lead to the original project's documentation and may not cover
-fork-specific APIs.
+license text, Git history, and attribution are retained. All current module,
+documentation, issue, and contribution links use the canonical repository.
 
 See the [migration guide](docs/migrating-to-pars-aria-labs.md) and
 [current fork release notes](docs/release-notes-v0.27.1.md) for compatibility
@@ -80,13 +79,8 @@ in [Bounded Inspector operations](docs/batch-inspector.md).
 - Queue pause/resume, Inspector APIs, CLI, Web UI, and Prometheus integration
 - Direct Redis, Sentinel, and Redis Cluster connection options
 
-The original project remains a useful reference for
-[retries (upstream wiki)](https://github.com/hibiken/asynq/wiki/Task-Retry),
-[queue priority (upstream wiki)](https://github.com/hibiken/asynq/wiki/Queue-Priority),
-[unique tasks (upstream wiki)](https://github.com/hibiken/asynq/wiki/Unique-Tasks),
-[timeouts (upstream wiki)](https://github.com/hibiken/asynq/wiki/Task-Timeout-and-Cancelation),
-[aggregation (upstream wiki)](https://github.com/hibiken/asynq/wiki/Task-aggregation),
-and [handler middleware (upstream wiki)](https://github.com/hibiken/asynq/wiki/Handler-Deep-Dive).
+Start with the quickstart below, then use the local `docs/` directory for
+bounded Inspector operations, migration, observability, and soak testing.
 
 ## Install or migrate
 
@@ -101,17 +95,16 @@ The second command installs the optional `x` module used by packages such as
 `x/metrics`. If your application does not import an `x` package, you can omit
 that command.
 
-The import-path migration is source-breaking, but the exported package name
-remains `asynq`:
+The canonical import path is shown below. The exported package name remains
+`asynq`:
 
-```diff
--import "github.com/hibiken/asynq"
-+import "github.com/pars-aria-labs/asynq"
+```go
+import "github.com/pars-aria-labs/asynq"
 ```
 
-Update optional submodules in the same way, then run `go mod tidy` and your test
-suite. No Redis data rewrite is required solely because of the Go module rename;
-keep the Redis endpoint, database, and prefix unchanged. See
+After updating module references, run `go mod tidy` and your test suite. No
+Redis data rewrite is required solely because of the Go module path; keep the
+Redis endpoint, database, and prefix unchanged. See
 [Migrating to the Pars Aria Labs module](docs/migrating-to-pars-aria-labs.md)
 before upgrading a production deployment.
 
@@ -206,9 +199,8 @@ func main() {
 }
 ```
 
-The original [Getting Started guide (upstream wiki)](https://github.com/hibiken/asynq/wiki/Getting-Started)
-covers the core producer/worker model. Use this README and the local `docs/`
-directory for fork-specific behavior.
+The producer and worker examples above cover the core execution model. Use this
+README and the local `docs/` directory for the maintained operational behavior.
 
 ## Bounded Inspector examples
 
@@ -372,7 +364,7 @@ Issues and pull requests are welcome. Review the
 
 Asynq is available under the [MIT License](LICENSE). The original work is
 copyright 2019-present Ken Hibino and
-[upstream contributors](https://github.com/hibiken/asynq/graphs/contributors).
+[project contributors](https://github.com/pars-aria-labs/asynq/graphs/contributors).
 Original notices and history are preserved. The logo was created by
 [Vic Shóstak](https://github.com/koddr) and released under
 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).

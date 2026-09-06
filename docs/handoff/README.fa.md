@@ -6,13 +6,15 @@
 
 این handoff وضعیت انتشار patch `v0.27.1` را ثبت می‌کند. کارهای اجرایی P0 تا P5، اصلاح‌های نهایی ابزارها و کنترل‌های انتشار انجام شده‌اند. ماژول‌های root، `x` و `tools` با tagهای هم‌نسخه منتشر می‌شوند و tagهای اولیهٔ `v0.27.0` نیز بدون جابه‌جایی حفظ شده‌اند. تست کامل، vet، race، soak هم‌زمان، تست و build رابط کاربری، smoke یکپارچه و اجرای واقعی Redis Cluster سه‌گرهی پاس شده‌اند.
 
+هویت ماژول Asynqmon نیز از نسخهٔ `v0.8.0` برابر `github.com/pars-aria-labs/asynqmon` است؛ بنابراین کد برنامه، ابزار smoke و نمونه‌های README همگی از namespace سازمان استفاده می‌کنند.
+
 جزئیات نتیجه هر TODO در [TODO.fa.md](./TODO.fa.md) و قرارداد APIهای جدید در [../batch-inspector.md](../batch-inspector.md) ثبت شده است.
 
 ## خلاصه تغییرهای asynq
 
 ### هویت و منشأ سورس
 
-ماژول canonical اکنون `github.com/pars-aria-labs/asynq` است و نام package در کد همچنان `asynq` باقی مانده است. این سورس از پروژه‌ی MIT-licensed `github.com/hibiken/asynq` منشعب شده و مبنای تاریخچه‌ی واردشده‌ی آن commit `2f4fd0a` است. تاریخچه، LICENSE و attribution نویسندگان اصلی حفظ شده‌اند و README به‌صراحت توضیح می‌دهد که این fork انتشار رسمی upstream نیست.
+سورس و ماژول canonical اکنون `github.com/pars-aria-labs/asynq` است و نام package در کد همچنان `asynq` باقی مانده است. مبنای تاریخچه‌ی واردشده commit `2f4fd0a` است. تاریخچه، LICENSE و attribution نویسندگان اصلی حفظ شده‌اند و README وضعیت نگه‌داری مستقل پروژه را به‌روشنی توضیح می‌دهد.
 
 فاز اول:
 
@@ -68,7 +70,7 @@
 
 ## خلاصه تغییرهای asynqmon
 
-checkout sibling از تاریخچه‌ی پروژه‌ی MIT-licensed `github.com/hibiken/asynqmon` ساخته شد و staging آرشیو به‌صورت conflict-aware روی آن ادغام شد. dependency هسته در نسخه‌ی نهایی به `github.com/pars-aria-labs/asynq` منتقل شده و مقصد نگه‌داری این checkout، `github.com/pars-aria-labs/asynqmon` است؛ هویت مستقل module خود Asynqmon فعلاً `github.com/hibiken/asynqmon` باقی مانده است.
+سورس و هویت ماژول sibling اکنون `github.com/pars-aria-labs/asynqmon` است. staging اولیه به‌صورت conflict-aware روی تاریخچه‌ی واردشده ادغام شد و dependency هسته نیز مستقیماً از `github.com/pars-aria-labs/asynq` استفاده می‌کند.
 
 - handlerهای queue/task/group از batch APIهای جدید در صورت وجود استفاده می‌کنند و با dependency قدیمی fallback دارند؛
 - bulk endpointهای موجود query اختیاری `batch_size=1..500` و فیلد `remaining` دارند؛
@@ -78,13 +80,7 @@ checkout sibling از تاریخچه‌ی پروژه‌ی MIT-licensed `github.c
 - تست handler واقعی با 523 task، تست middleware، تست fallback/partial failure UI و build assetهای embedded اضافه شده‌اند؛
 - `README.md` sibling رفتار compatibility را توضیح می‌دهد.
 
-فایل archive اولیه برای سابقه نگه داشته شده است:
-
-```text
-740149182b0a7c53b2f9dfb611ab1701521162f591c897b8229b61e66a5ed425  docs/handoff/asynqmon-pending.tar.gz
-```
-
-این archive دیگر منبع نهایی تغییرها نیست؛ نسخه نهایی در working tree `/root/asynqmon` قرار دارد. UI داخل archive بر پایه migration متفاوتی از React/MUI ساخته شده بود، بنابراین جایگزینی مستقیم فایل‌های آن روی checkout فعلی صحیح نبود.
+آرشیو staging اولیه پس از ادغام حذف شد؛ نسخه‌ی نهایی و قابل‌آزمون در working tree `/root/asynqmon` قرار دارد. تغییرهای UI با React 16 و Material UI 4 همان checkout هماهنگ شده‌اند.
 
 ## چیدمان و dependency محلی
 
