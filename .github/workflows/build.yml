@@ -1,84 +1,203 @@
 name: build
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: 1.25.x
+  NODE_VERSION: "24"
+  REDIS_IMAGE: redis:7.4-alpine
+  REDIS_CLUSTER_ADDRS: 127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002
 
 jobs:
-  build:
+  test:
+    name: test (${{ matrix.redis-mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GOWORK: ${{ github.workspace }}/dev/modules.work
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        go-version: [1.24.x, 1.25.x]
-    runs-on: ${{ matrix.os }}
+        redis-mode: [standalone, cluster]
     services:
       redis:
-        image: redis:7
+        image: redis:7.4-alpine
         ports:
           - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.go-version }}
-          cache: false
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            go.sum
+            x/go.sum
+            tools/go.sum
 
-      - name: Build core module
-        run: go build -v ./...
+      - name: Start Redis Cluster
+        if: matrix.redis-mode == 'cluster'
+        shell: bash
+        run: |
+          set -euo pipefail
 
-      - name: Build x module
-        run: cd x && go build -v ./... && cd ..
+          for port in 7000 7001 7002; do
+            docker run --detach \
+              --name "redis-cluster-${port}" \
+              --network host \
+              "$REDIS_IMAGE" \
+              redis-server \
+              --port "$port" \
+              --cluster-enabled yes \
+              --cluster-config-file nodes.conf \
+              --cluster-node-timeout 5000 \
+              --cluster-announce-ip 127.0.0.1 \
+              --cluster-announce-port "$port" \
+              --cluster-announce-bus-port "$((port + 10000))" \
+              --appendonly no \
+              --save ""
+          done
 
-      - name: Test core module
-        run: go test -race -v -coverprofile=coverage.txt -covermode=atomic ./...
+          for port in 7000 7001 7002; do
+            for attempt in {1..30}; do
+              if docker exec "redis-cluster-${port}" redis-cli -p "$port" ping | grep -q PONG; then
+                break
+              fi
+              if (( attempt == 30 )); then
+                docker logs "redis-cluster-${port}"
+                exit 1
+              fi
+              sleep 1
+            done
+          done
 
-      - name: Test x module
-        run: cd x && go test -race -v ./... && cd ..
+          docker exec redis-cluster-7000 redis-cli --cluster create \
+            127.0.0.1:7000 \
+            127.0.0.1:7001 \
+            127.0.0.1:7002 \
+            --cluster-replicas 0 \
+            --cluster-yes
 
-      - name: Benchmark Test
-        run: go test -run=^$ -bench=. -loglevel=debug ./...
+          for attempt in {1..30}; do
+            if docker exec redis-cluster-7000 redis-cli -p 7000 cluster info \
+              | tr -d '\r' \
+              | grep -q '^cluster_state:ok$'; then
+              break
+            fi
+            if (( attempt == 30 )); then
+              docker exec redis-cluster-7000 redis-cli -p 7000 cluster info
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test standalone Redis
+        if: matrix.redis-mode == 'standalone'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -p=1 -race -coverprofile=coverage.txt -covermode=atomic ./...
+          (cd x && go test -p=1 -race ./...)
+          (cd tools && go test -p=1 -race ./...)
+
+      - name: Run bounded Inspector soak test
+        if: matrix.redis-mode == 'standalone'
+        env:
+          ASYNQ_TEST_REDIS_ADDR: 127.0.0.1:6379
+          ASYNQ_SOAK_DURATION: 5s
+          ASYNQ_SOAK_INITIAL_TASKS: 500
+        run: make soak-inspector-batch
+
+      - name: Test Redis Cluster
+        if: matrix.redis-mode == 'cluster'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -p=1 -race . ./internal/rdb -args \
+            -redis_cluster \
+            -redis_cluster_addrs="$REDIS_CLUSTER_ADDRS"
+          (cd x && go test -p=1 -race ./rate -args \
+            -redis_cluster \
+            -redis_cluster_addrs="$REDIS_CLUSTER_ADDRS")
 
       - name: Upload coverage to Codecov
+        if: matrix.redis-mode == 'standalone'
         uses: codecov/codecov-action@v5
+        with:
+          files: coverage.txt
 
-  build-tool:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        go-version: [1.24.x, 1.25.x]
-    runs-on: ${{ matrix.os }}
-    services:
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
+  asynqmon:
+    name: asynqmon compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout asynq
+        uses: actions/checkout@v7
+        with:
+          path: asynq
+
+      - name: Checkout asynqmon
+        uses: actions/checkout@v7
+        with:
+          repository: pars-aria-labs/asynqmon
+          path: asynqmon
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.go-version }}
-          cache: false
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            asynq/go.sum
+            asynq/x/go.sum
+            asynqmon/go.sum
 
-      - name: Build tools module
-        run: cd tools && go build -v ./... && cd ..
+      - name: Test asynqmon with this asynq checkout
+        working-directory: asynqmon
+        env:
+          GOWORK: ${{ github.workspace }}/asynq/dev/asynqmon.work
+        run: go test -race ./...
 
-      - name: Test tools module
-        run: cd tools && go test -race -v ./... && cd ..
-
-  golangci:
-    name: lint
-    runs-on: ubuntu-latest
-    if: false
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
+      - name: Set up Node
+        uses: actions/setup-node@v7
         with:
-          go-version: stable
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+          cache-dependency-path: asynqmon/ui/yarn.lock
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.61
+      - name: Install Yarn
+        run: npm install --global yarn@1.22.22
+
+      - name: Install asynqmon UI dependencies
+        working-directory: asynqmon/ui
+        run: yarn install --frozen-lockfile
+
+      - name: Test asynqmon UI
+        working-directory: asynqmon/ui
+        env:
+          CI: "true"
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: yarn test --watchAll=false
+
+      - name: Build asynqmon UI
+        working-directory: asynqmon/ui
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: yarn build
