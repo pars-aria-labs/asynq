@@ -26,31 +26,44 @@ and verifying that the namespace is empty.
 
 `SCRIPT FLUSH` affects every client of a Redis server, regardless of database or
 key prefix. Run this target only against a disposable Redis instance. The only
-Redis endpoint setting read by the tool is `ASYNQ_TEST_REDIS_ADDR`; it defaults
-to `deps-redis:6379` and uses database 13.
+Redis endpoint setting read by the tool is `ASYNQ_TEST_REDIS_ADDR`; it is
+required and has no default. This deliberate requirement makes the target fail
+before connecting unless you choose the endpoint explicitly. The harness uses
+database 13 on that server, but `SCRIPT FLUSH` still affects every database.
 
 ## Run
 
-The default duration is 30 seconds:
+For a disposable Redis instance listening on localhost, run the default
+30-second test with:
 
 ```sh
-make soak-inspector-batch
+ASYNQ_TEST_REDIS_ADDR=127.0.0.1:6379 make soak-inspector-batch
 ```
 
-A short repeatable validation run is:
+A short repeatable local validation run is:
 
 ```sh
-ASYNQ_TEST_REDIS_ADDR=deps-redis:6379 \
+ASYNQ_TEST_REDIS_ADDR=127.0.0.1:6379 \
 ASYNQ_SOAK_DURATION=3s \
 ASYNQ_SOAK_INITIAL_TASKS=500 \
 make soak-inspector-batch
+```
+
+In CI, set the same variable to the disposable service address supplied by the
+runner instead of baking that address into the harness. For example:
+
+```yaml
+- name: Run Inspector soak test
+  env:
+    ASYNQ_TEST_REDIS_ADDR: 127.0.0.1:6379
+  run: make soak-inspector-batch
 ```
 
 Configuration is supplied only through environment variables:
 
 | Variable | Default | Constraint |
 | --- | ---: | --- |
-| `ASYNQ_TEST_REDIS_ADDR` | `deps-redis:6379` | Redis `host:port` |
+| `ASYNQ_TEST_REDIS_ADDR` | none (required) | Disposable Redis `host:port` |
 | `ASYNQ_SOAK_DURATION` | `30s` | at least `1s` |
 | `ASYNQ_SOAK_BATCH_SIZE` | `500` | `1..500` |
 | `ASYNQ_SOAK_INITIAL_TASKS` | `1000` | `1..1000000` |

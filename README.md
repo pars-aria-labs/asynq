@@ -27,7 +27,9 @@ license text, Git history, and attribution are retained. Links marked
 fork-specific APIs.
 
 See the [migration guide](docs/migrating-to-pars-aria-labs.md) and
-[fork release notes](docs/release-notes-v0.27.0.md) for compatibility details.
+[current fork release notes](docs/release-notes-v0.27.1.md) for compatibility
+details. The [v0.27.0 notes](docs/release-notes-v0.27.0.md) retain the complete
+history of the initial canonical release.
 
 ## What this fork adds
 
@@ -92,8 +94,13 @@ and [handler middleware (upstream wiki)](https://github.com/hibiken/asynq/wiki/H
 The module currently targets Go 1.25.
 
 ```sh
-go get github.com/pars-aria-labs/asynq@v0.27.0
+go get github.com/pars-aria-labs/asynq@v0.27.1
+go get github.com/pars-aria-labs/asynq/x@v0.27.1
 ```
+
+The second command installs the optional `x` module used by packages such as
+`x/metrics`. If your application does not import an `x` package, you can omit
+that command.
 
 The import-path migration is source-breaking, but the exported package name
 remains `asynq`:
@@ -337,11 +344,13 @@ for workspace and smoke-test instructions.
 Install the CLI from the canonical module:
 
 ```sh
-go install github.com/pars-aria-labs/asynq/tools/asynq@latest
+go install github.com/pars-aria-labs/asynq/tools/asynq@v0.27.1
 ```
 
 Run `asynq dash` for the terminal dashboard. See the
 [CLI documentation](tools/asynq/README.md) for commands and connection flags.
+Pinning the version makes local, CI, and production administration environments
+install the same reviewed CLI build.
 
 ## Stability and compatibility
 

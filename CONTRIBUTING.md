@@ -18,9 +18,15 @@ the following details:
 
 ## Getting Help
 
-We run a [Gitter
-channel](https://gitter.im/go-asynq/community) where you can ask questions and
-get help. Feel free to ask there before opening a GitHub issue.
+The [go-asynq Gitter channel](https://gitter.im/go-asynq/community) belongs to
+the upstream project. This fork does not operate that channel and cannot
+guarantee that fork-specific questions will be answered there.
+
+For help with behavior or APIs provided by this fork, first search the
+[Pars Aria Labs issue tracker](https://github.com/pars-aria-labs/asynq/issues).
+If your question has not already been answered, open a focused issue with a
+small example and the versions of Go, Redis, and Asynq you are using. Do not
+include credentials or sensitive incident details in a public issue.
 
 ## Submitting Feature Requests
 

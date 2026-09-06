@@ -3,7 +3,7 @@
 // that can be found in the LICENSE file.
 
 /*
-Package asynq provides a framework for Redis based distrubted task queue.
+Package asynq provides a framework for a Redis-backed distributed task queue.
 
 Asynq uses Redis as a message broker. To connect to redis,
 specify the connection using one of RedisConnOpt types.
@@ -31,7 +31,7 @@ The Client is used to enqueue a task.
 	info, err := client.Enqueue(task)
 
 	// Schedule the task to be processed after one minute.
-	info, err = client.Enqueue(t, asynq.ProcessIn(1*time.Minute))
+	info, err = client.Enqueue(task, asynq.ProcessIn(1*time.Minute))
 
 The Server is used to run the task processing workers with a given
 handler.

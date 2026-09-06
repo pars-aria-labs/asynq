@@ -64,9 +64,9 @@ CI=true npm test --prefix ui -- --watchAll=false
 npm run build --prefix ui
 ```
 
-importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` مهاجرت کرده‌اند و `go.mod`های root، `x`، `tools` و Asynqmon نسخهٔ واقعی `v0.27.0` را pin می‌کنند. tagهای `v0.27.0`، `x/v0.27.0` و `tools/v0.27.0` منتشر شده‌اند و build، test و vet مستقل ماژول‌های وابسته با `GOWORK=off` و بدون replace محلی پاس شده است. workspace صرفاً برای توسعهٔ هم‌زمان checkoutها حفظ می‌شود.
+importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` مهاجرت کرده‌اند و `go.mod`های root، `x`، `tools` و Asynqmon نسخهٔ واقعی `v0.27.1` را pin می‌کنند. tagهای هم‌نسخهٔ patch بدون جابه‌جایی tagهای `v0.27.0` منتشر می‌شوند و build، test و vet مستقل ماژول‌های وابسته با `GOWORK=off` و بدون replace محلی پاس شده است. workspace صرفاً برای توسعهٔ هم‌زمان checkoutها حفظ می‌شود.
 
-تست cluster در این container اجرا نشد، چون endpoint کلاستر یا Docker در دسترس نبود. راه‌اندازی و اجرای آن در workflow CI اضافه شده و اجرای واقعی workflow پس از push تنها بررسی محیطی باقی‌مانده است.
+برای بازتولید failure اولیهٔ CI، Redis محلی نصب و یک cluster موقت سه‌گرهی روی portهای ایزوله ساخته شد. فرمان دقیق workflow با Go 1.25 و race پس از اصلاح ownership منابع تست و حذف فرض تک‌node در assertionهای `KEYS` کاملاً پاس شد؛ cluster موقت نیز پس از آزمون خاموش شد. همان مسیر در workflow عمومی GitHub تکرار می‌شود.
 
 ## P4: APIهای عملیاتی و observability — انجام شد
 

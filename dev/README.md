@@ -1,8 +1,8 @@
 # Testing with the sibling asynqmon checkout
 
-The inspector optimization and bounded batch-operation phases are complete.
-See `docs/handoff/README.fa.md` for the release-candidate status and the full
-validation record.
+The Inspector optimization and bounded batch-operation phases are complete.
+See `docs/handoff/README.fa.md` for the release status and full validation
+record.
 
 Keep `asynq` and `asynqmon` in the same parent directory. With Go 1.25 or
 newer on PATH, run this from the asynq repository:
@@ -13,10 +13,9 @@ make test-asynqmon
 
 The explicit `dev/asynqmon.work` workspace selects the local asynq module and
 its `x` module (including the Prometheus exporter). Asynqmon imports and pins
-the canonical `github.com/pars-aria-labs/asynq` modules at `v0.27.0`; the
-workspace maps those versions to the sibling source trees so the release can be
-tested before its tags are available through a Go proxy. After the canonical
-tags are published, a `GOWORK=off` build verifies the same dependency graph
+the canonical `github.com/pars-aria-labs/asynq` modules at `v0.27.1`; the
+workspace maps those versions to the sibling source trees for simultaneous
+development. A `GOWORK=off` build verifies the released dependency graph
 without local overrides.
 
 To run the monitor with these local changes:
@@ -72,8 +71,14 @@ flush databases 14 and 15. The regression benchmark can use a separate test DB:
 go test ./...
 go vet ./...
 go test ./internal/rdb -run '^$' -bench '^BenchmarkInspectorListServers$' -benchmem -redis_db=13
-ASYNQ_TEST_REDIS_ADDR=deps-redis:6379 make soak-inspector-batch
+ASYNQ_TEST_REDIS_ADDR=127.0.0.1:6379 make soak-inspector-batch
 ```
+
+The soak target intentionally has no Redis-address default: set
+`ASYNQ_TEST_REDIS_ADDR` to a disposable local instance, or to the disposable
+Redis service address provided by CI. It runs `SCRIPT FLUSH`, which affects all
+databases on that server. See the [soak-test safety guide](../docs/inspector-soak.md)
+before running it.
 
 ## Validation (2026-09-06)
 

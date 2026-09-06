@@ -58,10 +58,15 @@ representative at an online or offline event.
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-ken.hibino7@gmail.com.
-All complaints will be reviewed and investigated promptly and fairly.
+Report abusive, harassing, or otherwise unacceptable behavior through a
+private contact method published by Pars Aria Labs for this repository or its
+GitHub organization. No project-specific private reporting channel is currently
+published. Until one is available, use GitHub's
+[Report Abuse form](https://support.github.com/contact/report-abuse).
+
+Do not put names, contact details, screenshots, logs, or any other sensitive
+incident information in a public issue. Reports received through an official
+private channel will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.

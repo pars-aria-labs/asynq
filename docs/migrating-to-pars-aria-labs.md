@@ -27,7 +27,7 @@ Replace the module import in Go files:
 Then update the dependency to the canonical release:
 
 ```sh
-go get github.com/pars-aria-labs/asynq@v0.27.0
+go get github.com/pars-aria-labs/asynq@v0.27.1
 go mod tidy
 go test ./...
 ```
@@ -37,6 +37,12 @@ If the application imports optional packages, migrate them in the same way:
 ```diff
 -import "github.com/hibiken/asynq/x/metrics"
 +import "github.com/pars-aria-labs/asynq/x/metrics"
+```
+
+Then pin the matching optional-module release before tidying:
+
+```sh
+go get github.com/pars-aria-labs/asynq/x@v0.27.1
 ```
 
 Do not use a permanent `replace` directive to disguise the old module as the

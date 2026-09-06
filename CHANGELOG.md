@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-09-06
+
+### Added
+
+- Add `--prefix` support to the terminal CLI for standalone Redis and Redis
+  Cluster connections.
+- Add `-redis-prefix` to the bundled Prometheus exporter.
+
+### Fixed
+
+- Close every owned Inspector and server-side Redis client in tests so the
+  Redis Cluster suite detects real goroutine leaks without false carry-over
+  from earlier tests.
+- Make test-only task-key discovery query every Redis Cluster master instead
+  of sending `KEYS` to an arbitrary node.
+- Honor `cluster: true` from the CLI config file when formatting queue and
+  Redis information.
+- Correct the package example and clarify fork-owned support, conduct, soak,
+  CLI, prefix, TLS, and cluster instructions.
+
+No Redis schema or serialized task format changes are included. See the
+[v0.27.1 release notes](docs/release-notes-v0.27.1.md).
+
 ## [0.27.0] - 2026-09-06
 
 ### Changed

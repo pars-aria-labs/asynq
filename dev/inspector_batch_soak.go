@@ -80,10 +80,13 @@ func main() {
 }
 
 func loadSoakConfig() (soakConfig, error) {
-	cfg := soakConfig{redisAddr: os.Getenv("ASYNQ_TEST_REDIS_ADDR")}
-	if cfg.redisAddr == "" {
-		cfg.redisAddr = "deps-redis:6379"
+	redisAddr := strings.TrimSpace(os.Getenv("ASYNQ_TEST_REDIS_ADDR"))
+	if redisAddr == "" {
+		return soakConfig{}, errors.New(
+			"ASYNQ_TEST_REDIS_ADDR is required; point it at a disposable Redis instance (for example 127.0.0.1:6379)",
+		)
 	}
+	cfg := soakConfig{redisAddr: redisAddr}
 	var err error
 	if cfg.duration, err = positiveDurationEnv("ASYNQ_SOAK_DURATION", 30*time.Second); err != nil {
 		return soakConfig{}, err
