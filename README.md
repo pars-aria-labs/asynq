@@ -92,7 +92,7 @@ and [handler middleware (upstream wiki)](https://github.com/hibiken/asynq/wiki/H
 The module currently targets Go 1.25.
 
 ```sh
-go get github.com/pars-aria-labs/asynq
+go get github.com/pars-aria-labs/asynq@v0.27.0
 ```
 
 The import-path migration is source-breaking, but the exported package name

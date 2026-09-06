@@ -64,7 +64,7 @@ CI=true npm test --prefix ui -- --watchAll=false
 npm run build --prefix ui
 ```
 
-importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` مهاجرت کرده‌اند و `go.mod`های root، `x`، `tools` و Asynqmon نسخهٔ واقعی `v0.27.0` را pin می‌کنند. تا زمان قابل resolve شدن tagهای root و `x`، build، test و vet ماژول‌های وابسته با replaceهای version-specific داخل workspace انجام می‌شوند؛ پس از انتشار، validation مستقل با `GOWORK=off` تکرار می‌شود.
+importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` مهاجرت کرده‌اند و `go.mod`های root، `x`، `tools` و Asynqmon نسخهٔ واقعی `v0.27.0` را pin می‌کنند. tagهای `v0.27.0`، `x/v0.27.0` و `tools/v0.27.0` منتشر شده‌اند و build، test و vet مستقل ماژول‌های وابسته با `GOWORK=off` و بدون replace محلی پاس شده است. workspace صرفاً برای توسعهٔ هم‌زمان checkoutها حفظ می‌شود.
 
 تست cluster در این container اجرا نشد، چون endpoint کلاستر یا Docker در دسترس نبود. راه‌اندازی و اجرای آن در workflow CI اضافه شده و اجرای واقعی workflow پس از push تنها بررسی محیطی باقی‌مانده است.
 
@@ -84,6 +84,6 @@ importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` �
 - README منبع اصلی `hibiken/asynq`، fork میانی `parsidev/asynq` و base دقیق `v0.26.0-parsidev-02`/`2f4fd0a` را ثبت می‌کند و تغییرهای fork را همراه نمونه‌های آموزشی توضیح می‌دهد.
 - release note، راهنمای migration و compile-time contract test برای API عمومی اضافه شد.
 - soak test اختیاری producer، mutation، stats و `SCRIPT FLUSH` هم‌زمان را با namespace یکتا و cleanup محدود به همان namespace اجرا می‌کند.
-- اجرای واقعی سه‌ثانیه‌ای soak پاس شد: 1996 task enqueue و دقیقاً 1996 task پردازش شد؛ 3134 batch call، 119 stats read و 16 script flush ثبت شد.
+- اجرای واقعی soak نهایی پاس شد: 2499 task enqueue و دقیقاً 2499 task پردازش شد؛ 3106 batch call، 120 stats read و 16 script flush ثبت شد.
 
 قرارداد و آموزش کامل APIها در `docs/batch-inspector.md`، مهاجرت مسیر ماژول در `docs/migrating-to-pars-aria-labs.md` و اجرای soak در `docs/inspector-soak.md` ثبت شده است.

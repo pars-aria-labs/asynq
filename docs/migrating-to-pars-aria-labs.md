@@ -24,7 +24,7 @@ Replace the module import in Go files:
 +import "github.com/pars-aria-labs/asynq"
 ```
 
-Then update the dependency after the first canonical release is published:
+Then update the dependency to the canonical release:
 
 ```sh
 go get github.com/pars-aria-labs/asynq@v0.27.0
@@ -41,8 +41,9 @@ If the application imports optional packages, migrate them in the same way:
 
 Do not use a permanent `replace` directive to disguise the old module as the
 new one. Go's `internal` package rules and self-imports make that arrangement
-fragile. A local `go.work` file is appropriate while developing two sibling
-checkouts before their canonical tags exist.
+fragile. A local `go.work` file is appropriate when actively developing two
+sibling checkouts together; released consumers should resolve the versioned
+modules directly.
 
 ## Redis data compatibility
 

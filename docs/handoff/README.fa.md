@@ -4,7 +4,7 @@
 ریپوی اصلی فعلی: `/root/src`
 ریپوی UI/sibling فعلی: `/root/asynqmon`
 
-این handoff اکنون در وضعیت release candidate است: کارهای اجرایی P0 تا P5 انجام شده‌اند و تست کامل، vet، race مسیر حساس، soak هم‌زمان، تست و build رابط کاربری و smoke یکپارچه پاس شده‌اند. تنها validation اجرا‌نشده در همین container، اجرای واقعی Redis Cluster است؛ cluster سه‌گرهی و تست آن در CI تعریف شده است.
+این handoff اکنون در وضعیت انتشار اولیه است: کارهای اجرایی P0 تا P5 انجام شده‌اند، tagهای `v0.27.0`، `x/v0.27.0` و `tools/v0.27.0` از remote عمومی قابل resolve هستند و تست کامل، vet، race مسیر حساس، soak هم‌زمان، تست و build رابط کاربری و smoke یکپارچه پاس شده‌اند. تنها validation اجرا‌نشده در همین container، اجرای واقعی Redis Cluster است؛ cluster سه‌گرهی و تست آن در CI تعریف شده است.
 
 جزئیات نتیجه هر TODO در [TODO.fa.md](./TODO.fa.md) و قرارداد APIهای جدید در [../batch-inspector.md](../batch-inspector.md) ثبت شده است.
 
@@ -95,24 +95,25 @@ checkout sibling ابتدا از `https://github.com/parsidev/asynqmon` ساخت
   asynqmon/  # sibling UI/server
 ```
 
-workspace، ماژول اصلی asynq، ماژول `x` و sibling را کنار هم قرار می‌دهد. importهای Go در asynqmon اکنون مستقیماً از مسیر canonical یعنی `github.com/pars-aria-labs/asynq` و `github.com/pars-aria-labs/asynq/x` استفاده می‌کنند. فایل‌های `go.mod` نسخهٔ واقعی `v0.27.0` را pin کرده‌اند و replaceهای version-specific فقط در workspaceهای توسعه قرار دارند تا پیش از در دسترس‌شدن tagها از سورس محلی استفاده شود.
+workspace، ماژول اصلی asynq، ماژول `x` و sibling را کنار هم قرار می‌دهد. importهای Go در asynqmon اکنون مستقیماً از مسیر canonical یعنی `github.com/pars-aria-labs/asynq` و `github.com/pars-aria-labs/asynq/x` استفاده می‌کنند. فایل‌های `go.mod` نسخهٔ واقعی `v0.27.0` را pin کرده‌اند؛ replaceهای version-specific فقط برای توسعهٔ هم‌زمان checkoutهای محلی در workspace باقی مانده‌اند و برای مصرف نسخهٔ منتشرشده لازم نیستند.
 
-تا زمانی که tagهای canonical از remote یا Go proxy قابل resolve نباشند، تست مستقل با `GOWORK=off` برای ماژول‌های وابسته طبیعی است که موفق نشود. پس از انتشار `v0.27.0` و `x/v0.27.0`، همان graph بدون replace محلی دوباره tidy و تست می‌شود.
+tagهای canonical در remote منتشر شده‌اند. ماژول‌های `x` و `tools` و همچنین Asynqmon پس از `go mod tidy` با `GOWORK=off` و `GOPROXY=direct` تست و vet شده‌اند؛ در نتیجه graph انتشار به workspace محلی وابسته نیست.
 
 اگر parent path تغییر کرد، مسیر `../../asynqmon` در `dev/asynqmon.work` نیز باید متناسب با آن به‌روزرسانی شود.
 
 ## اعتبارسنجی ثبت‌شده
 
-- `go test ./...`: پاس؛ package اصلی در اجرای ایزوله `202.756s` زمان برد.
+- `go test ./...`: پاس؛ package اصلی در اجرای نهایی ایزوله حدود `200.2s` زمان برد.
 - `go vet ./...`: پاس؛ vet ماژول‌های `x` و `tools` نیز پاس است.
-- `CGO_ENABLED=1 go test -race ./internal/rdb`: پاس در `16.579s`.
+- `CGO_ENABLED=1 go test -race ./internal/rdb`: پاس در حدود `12.9s`.
 - race test هم‌زمانی cache عمومی Inspector: پاس.
 - `make test-asynqmon`: پاس.
 - smoke واقعی با `deps-redis:6379`: پاس برای queue/task، pause/resume، batch/remaining و archive/run/delete.
-- تست Go sibling با workspace: پاس؛ تست `GOWORK=off` پس از قابل resolve شدن tagهای `v0.27.0` تکرار می‌شود.
+- تست Go sibling با workspace و نیز تست race و vet مستقل با `GOWORK=off`: پاس.
 - integration واقعی sibling با 523 task: پاسخ `scheduled=500` و `remaining=23` و state مقصد صحیح.
 - UI: دو suite و هشت تست پاس؛ production build پاس.
 - `actionlint` و `git diff --check`: پاس.
+- soak نهایی: 2499 task enqueue و پردازش شد؛ 3106 batch call، 120 stats read و 16 بار `SCRIPT FLUSH` ثبت شد.
 
 build رابط کاربری فقط warning قدیمی source-map مربوط به Redux Toolkit دارد و artifact قابل deploy تولید می‌شود.
 
