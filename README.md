@@ -1,317 +1,370 @@
-<img src="https://user-images.githubusercontent.com/11155743/114697792-ffbfa580-9d26-11eb-8e5b-33bef69476dc.png" alt="Asynq logo" width="360px" />
+<img src="https://user-images.githubusercontent.com/11155743/114697792-ffbfa580-9d26-11eb-8e5b-33bef69476dc.png" alt="Asynq logo" width="360">
 
-# Simple, reliable & efficient distributed task queue in Go
+# Asynq
 
-[![GoDoc](https://godoc.org/github.com/hibiken/asynq?status.svg)](https://godoc.org/github.com/hibiken/asynq)
-[![Go Report Card](https://goreportcard.com/badge/github.com/hibiken/asynq)](https://goreportcard.com/report/github.com/hibiken/asynq)
-![Build Status](https://github.com/hibiken/asynq/workflows/build/badge.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Gitter chat](https://badges.gitter.im/go-asynq/gitter.svg)](https://gitter.im/go-asynq/community)
+A simple, reliable, and efficient Redis-backed distributed task queue for Go.
 
-Asynq is a Go library for queueing tasks and processing them asynchronously with workers. It's backed by [Redis](https://redis.io/) and is designed to be scalable yet easy to get started.
+[![Go Reference](https://pkg.go.dev/badge/github.com/pars-aria-labs/asynq.svg)](https://pkg.go.dev/github.com/pars-aria-labs/asynq)
+[![Go Report Card](https://goreportcard.com/badge/github.com/pars-aria-labs/asynq)](https://goreportcard.com/report/github.com/pars-aria-labs/asynq)
+[![Build](https://github.com/pars-aria-labs/asynq/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/pars-aria-labs/asynq/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Highlevel overview of how Asynq works:
+Clients enqueue tasks, servers process them concurrently, and Redis coordinates
+delivery, scheduling, retries, and recovery across processes and machines.
 
-- Client puts tasks on a queue
-- Server pulls tasks off queues and starts a worker goroutine for each task
-- Tasks are processed concurrently by multiple workers
+## Source and fork provenance
 
-Task queues are used as a mechanism to distribute work across multiple machines. A system can consist of multiple worker servers and brokers, giving way to high availability and horizontal scaling.
+- Original upstream: [`hibiken/asynq`](https://github.com/hibiken/asynq).
+- Intermediate fork: [`parsidev/asynq`](https://github.com/parsidev/asynq).
+- Fork base: tag [`v0.26.0-parsidev-02`](https://github.com/parsidev/asynq/tree/v0.26.0-parsidev-02),
+  commit [`2f4fd0a`](https://github.com/parsidev/asynq/commit/2f4fd0a).
+- Canonical module maintained here: `github.com/pars-aria-labs/asynq`.
 
-**Example use case**
+This is an independently maintained fork and is **not an official upstream
+Asynq release**. The project remains MIT-licensed; original copyright notices,
+license text, Git history, and attribution are retained. Links marked
+"upstream wiki" lead to the original project's documentation and may not cover
+fork-specific APIs.
 
-![Task Queue Diagram](https://user-images.githubusercontent.com/11155743/116358505-656f5f80-a806-11eb-9c16-94e49dab0f99.jpg)
+See the [migration guide](docs/migrating-to-pars-aria-labs.md) and
+[fork release notes](docs/release-notes-v0.27.0.md) for compatibility details.
 
-## Features
+## What this fork adds
 
-- Guaranteed [at least one execution](https://www.cloudcomputingpatterns.org/at_least_once_delivery/) of a task
-- Scheduling of tasks
-- [Retries](https://github.com/hibiken/asynq/wiki/Task-Retry) of failed tasks
-- Automatic recovery of tasks in the event of a worker crash
-- [Weighted priority queues](https://github.com/hibiken/asynq/wiki/Queue-Priority#weighted-priority)
-- [Strict priority queues](https://github.com/hibiken/asynq/wiki/Queue-Priority#strict-priority)
-- Low latency to add a task since writes are fast in Redis
-- De-duplication of tasks using [unique option](https://github.com/hibiken/asynq/wiki/Unique-Tasks)
-- Allow [timeout and deadline per task](https://github.com/hibiken/asynq/wiki/Task-Timeout-and-Cancelation)
-- Allow [aggregating group of tasks](https://github.com/hibiken/asynq/wiki/Task-aggregation) to batch multiple successive operations
-- [Flexible handler interface with support for middlewares](https://github.com/hibiken/asynq/wiki/Handler-Deep-Dive)
-- [Ability to pause queue](/tools/asynq/README.md#pause) to stop processing tasks from the queue
-- [Periodic Tasks](https://github.com/hibiken/asynq/wiki/Periodic-Tasks)
-- [Support Redis Sentinels](https://github.com/hibiken/asynq/wiki/Automatic-Failover) for high availability
-- Integration with [Prometheus](https://prometheus.io/) to collect and visualize queue metrics
-- [Web UI](#web-ui) to inspect and remote-control queues and tasks
-- [CLI](#command-line-tool) to inspect and remote-control queues and tasks
+The core enqueue and worker model remains familiar, with additional operational
+safety and observability around Inspector workflows:
 
-## Stability and Compatibility
+- **Redis namespace isolation:** Inspector reads and mutations consistently
+  honor `RedisClientOpt.Prefix`, including queue, task, group, worker, server,
+  and scheduler metadata.
+- **Bounded administration:** atomic Inspector task mutations are limited to
+  500 source-state transitions. Archive actions have a separate bounded budget
+  of 500 retention evictions. These mutating Lua commands disable ambiguous
+  transport retries while retaining safe `NOSCRIPT` recovery and Redis Cluster
+  redirection. Deletion also cleans unique-task locks and aggregation metadata.
+- **Controlled multi-batch work:** `TaskBatchPolicy` adds a fixed work budget,
+  whole-operation timeout, and context-aware delay between batches.
+- **Lower read amplification:** queue snapshots are pipelined in groups of at
+  most 100 queues, while server, worker, and scheduler metadata reads are also
+  pipelined. Only approximate memory samples have an optional short-lived
+  cache. Exact aggregation statistics still scale with the number of groups
+  registered for each queue.
+- **Cancellation and explicit selection:** `Inspector.WithContext` makes legacy
+  methods cancellable. `QueryTasks` filters one bounded page by type, last-error
+  substring, or time range, and `ProcessTaskIDs` mutates an explicit list of at
+  most 500 IDs.
+- **Low-cardinality telemetry:** an Inspector operation observer reports
+  duration, outcome, confirmed work, and instrumented Redis client executions.
+  The optional `x/metrics` collector exports these observations to Prometheus
+  without queue, task, group, or raw-error labels.
+- **Operational verification:** CI covers race-enabled standalone Redis and a
+  three-node Redis Cluster, plus the companion
+  [Asynqmon checkout](https://github.com/pars-aria-labs/asynqmon). A separate
+  [opt-in soak harness](docs/inspector-soak.md) exercises concurrent producers,
+  bounded mutations, pipelined reads, cancellation, and repeated script-cache
+  flushes.
 
-**Status**: The library relatively stable and is currently undergoing **moderate development** with less frequent breaking API changes.
+The detailed contracts and supported state/action combinations are documented
+in [Bounded Inspector operations](docs/batch-inspector.md).
 
-> ☝️ **Important Note**: Current major version is zero (`v0.x.x`) to accommodate rapid development and fast iteration while getting early feedback from users (_feedback on APIs are appreciated!_). The public API could change without a major version update before `v1.0.0` release.
+## Core capabilities
 
-### Redis Cluster Compatibility
+- At-least-once task execution
+- Immediate, delayed, and periodic scheduling
+- Automatic retry and worker-crash recovery
+- Weighted and strict-priority queues
+- Per-task timeout, deadline, retention, and uniqueness
+- Task aggregation
+- Middleware-based handlers
+- Queue pause/resume, Inspector APIs, CLI, Web UI, and Prometheus integration
+- Direct Redis, Sentinel, and Redis Cluster connection options
 
-Some of the lua scripts in this library may not be compatible with Redis Cluster.
+The original project remains a useful reference for
+[retries (upstream wiki)](https://github.com/hibiken/asynq/wiki/Task-Retry),
+[queue priority (upstream wiki)](https://github.com/hibiken/asynq/wiki/Queue-Priority),
+[unique tasks (upstream wiki)](https://github.com/hibiken/asynq/wiki/Unique-Tasks),
+[timeouts (upstream wiki)](https://github.com/hibiken/asynq/wiki/Task-Timeout-and-Cancelation),
+[aggregation (upstream wiki)](https://github.com/hibiken/asynq/wiki/Task-aggregation),
+and [handler middleware (upstream wiki)](https://github.com/hibiken/asynq/wiki/Handler-Deep-Dive).
 
-## Sponsoring
-If you are using this package in production, **please consider sponsoring the project to show your support!**
+## Install or migrate
 
-## Quickstart
-Make sure you have Go installed ([download](https://golang.org/dl/)). The **last two** Go versions are supported (See https://go.dev/dl).
-
-Initialize your project by creating a folder and then running `go mod init github.com/your/repo` ([learn more](https://blog.golang.org/using-go-modules)) inside the folder. Then install Asynq library with the [`go get`](https://golang.org/cmd/go/#hdr-Add_dependencies_to_current_module_and_install_them) command:
+The module currently targets Go 1.25.
 
 ```sh
-go get -u github.com/hibiken/asynq
+go get github.com/pars-aria-labs/asynq
 ```
 
-Make sure you're running a Redis server locally or from a [Docker](https://hub.docker.com/_/redis) container. Version `4.0` or higher is required.
+The import-path migration is source-breaking, but the exported package name
+remains `asynq`:
 
-Next, write a package that encapsulates task creation and task handling.
-
-```go
-package tasks
-
-import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "log"
-    "time"
-    "github.com/hibiken/asynq"
-)
-
-// A list of task types.
-const (
-    TypeEmailDelivery   = "email:deliver"
-    TypeImageResize     = "image:resize"
-)
-
-type EmailDeliveryPayload struct {
-    UserID     int
-    TemplateID string
-}
-
-type ImageResizePayload struct {
-    SourceURL string
-}
-
-//----------------------------------------------
-// Write a function NewXXXTask to create a task.
-// A task consists of a type and a payload.
-//----------------------------------------------
-
-func NewEmailDeliveryTask(userID int, tmplID string) (*asynq.Task, error) {
-    payload, err := json.Marshal(EmailDeliveryPayload{UserID: userID, TemplateID: tmplID})
-    if err != nil {
-        return nil, err
-    }
-    return asynq.NewTask(TypeEmailDelivery, payload), nil
-}
-
-func NewImageResizeTask(src string) (*asynq.Task, error) {
-    payload, err := json.Marshal(ImageResizePayload{SourceURL: src})
-    if err != nil {
-        return nil, err
-    }
-    // task options can be passed to NewTask, which can be overridden at enqueue time.
-    return asynq.NewTask(TypeImageResize, payload, asynq.MaxRetry(5), asynq.Timeout(20 * time.Minute)), nil
-}
-
-//---------------------------------------------------------------
-// Write a function HandleXXXTask to handle the input task.
-// Note that it satisfies the asynq.HandlerFunc interface.
-//
-// Handler doesn't need to be a function. You can define a type
-// that satisfies asynq.Handler interface. See examples below.
-//---------------------------------------------------------------
-
-func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
-    var p EmailDeliveryPayload
-    if err := json.Unmarshal(t.Payload(), &p); err != nil {
-        return fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
-    }
-    log.Printf("Sending Email to User: user_id=%d, template_id=%s", p.UserID, p.TemplateID)
-    // Email delivery code ...
-    return nil
-}
-
-// ImageProcessor implements asynq.Handler interface.
-type ImageProcessor struct {
-    // ... fields for struct
-}
-
-func (processor *ImageProcessor) ProcessTask(ctx context.Context, t *asynq.Task) error {
-    var p ImageResizePayload
-    if err := json.Unmarshal(t.Payload(), &p); err != nil {
-        return fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
-    }
-    log.Printf("Resizing image: src=%s", p.SourceURL)
-    // Image resizing code ...
-    return nil
-}
-
-func NewImageProcessor() *ImageProcessor {
-	return &ImageProcessor{}
-}
+```diff
+-import "github.com/hibiken/asynq"
++import "github.com/pars-aria-labs/asynq"
 ```
 
-In your application code, import the above package and use [`Client`](https://pkg.go.dev/github.com/hibiken/asynq?tab=doc#Client) to put tasks on queues.
+Update optional submodules in the same way, then run `go mod tidy` and your test
+suite. No Redis data rewrite is required solely because of the Go module rename;
+keep the Redis endpoint, database, and prefix unchanged. See
+[Migrating to the Pars Aria Labs module](docs/migrating-to-pars-aria-labs.md)
+before upgrading a production deployment.
+
+## Quickstart
+
+Use the same Redis settings for producers, workers, schedulers, and Inspectors.
+A non-empty prefix stores keys under `<Prefix>:asynq:*`, allowing independent
+deployments to share a Redis database without sharing Asynq state.
+
+### Enqueue a task
 
 ```go
 package main
 
 import (
-    "log"
-    "time"
+	"encoding/json"
+	"log"
 
-    "github.com/hibiken/asynq"
-    "your/app/package/tasks"
+	"github.com/pars-aria-labs/asynq"
 )
 
-const redisAddr = "127.0.0.1:6379"
-
 func main() {
-    client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
-    defer client.Close()
+	redisOpt := asynq.RedisClientOpt{
+		Addr:   "127.0.0.1:6379",
+		Prefix: "billing-prod",
+	}
+	client := asynq.NewClient(redisOpt)
+	defer client.Close()
 
-    // ------------------------------------------------------
-    // Example 1: Enqueue task to be processed immediately.
-    //            Use (*Client).Enqueue method.
-    // ------------------------------------------------------
+	payload, err := json.Marshal(struct {
+		UserID int `json:"user_id"`
+	}{UserID: 42})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    task, err := tasks.NewEmailDeliveryTask(42, "some:template:id")
-    if err != nil {
-        log.Fatalf("could not create task: %v", err)
-    }
-    info, err := client.Enqueue(task)
-    if err != nil {
-        log.Fatalf("could not enqueue task: %v", err)
-    }
-    log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
-
-
-    // ------------------------------------------------------------
-    // Example 2: Schedule task to be processed in the future.
-    //            Use ProcessIn or ProcessAt option.
-    // ------------------------------------------------------------
-
-    info, err = client.Enqueue(task, asynq.ProcessIn(24*time.Hour))
-    if err != nil {
-        log.Fatalf("could not schedule task: %v", err)
-    }
-    log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
-
-
-    // ----------------------------------------------------------------------------
-    // Example 3: Set other options to tune task processing behavior.
-    //            Options include MaxRetry, Queue, Timeout, Deadline, Unique etc.
-    // ----------------------------------------------------------------------------
-
-    task, err = tasks.NewImageResizeTask("https://example.com/myassets/image.jpg")
-    if err != nil {
-        log.Fatalf("could not create task: %v", err)
-    }
-    info, err = client.Enqueue(task, asynq.MaxRetry(10), asynq.Timeout(3 * time.Minute))
-    if err != nil {
-        log.Fatalf("could not enqueue task: %v", err)
-    }
-    log.Printf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+	info, err := client.Enqueue(
+		asynq.NewTask("email:welcome", payload),
+		asynq.Queue("critical"),
+		asynq.MaxRetry(5),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("enqueued task id=%s queue=%s", info.ID, info.Queue)
 }
 ```
 
-Next, start a worker server to process these tasks in the background. To start the background workers, use [`Server`](https://pkg.go.dev/github.com/hibiken/asynq?tab=doc#Server) and provide your [`Handler`](https://pkg.go.dev/github.com/hibiken/asynq?tab=doc#Handler) to process the tasks.
-
-You can optionally use [`ServeMux`](https://pkg.go.dev/github.com/hibiken/asynq?tab=doc#ServeMux) to create a handler, just as you would with [`net/http`](https://golang.org/pkg/net/http/) Handler.
+### Run a worker
 
 ```go
 package main
 
 import (
-    "log"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
 
-    "github.com/hibiken/asynq"
-    "your/app/package/tasks"
+	"github.com/pars-aria-labs/asynq"
 )
 
-const redisAddr = "127.0.0.1:6379"
-
 func main() {
-    srv := asynq.NewServer(
-        asynq.RedisClientOpt{Addr: redisAddr},
-        asynq.Config{
-            // Specify how many concurrent workers to use
-            Concurrency: 10,
-            // Optionally specify multiple queues with different priority.
-            Queues: map[string]int{
-                "critical": 6,
-                "default":  3,
-                "low":      1,
-            },
-            // See the godoc for other configuration options
-        },
-    )
+	redisOpt := asynq.RedisClientOpt{
+		Addr:   "127.0.0.1:6379",
+		Prefix: "billing-prod", // Must match the producer.
+	}
+	server := asynq.NewServer(redisOpt, asynq.Config{
+		Concurrency: 10,
+		Queues: map[string]int{
+			"critical": 6,
+			"default":  3,
+			"low":      1,
+		},
+	})
 
-    // mux maps a type to a handler
-    mux := asynq.NewServeMux()
-    mux.HandleFunc(tasks.TypeEmailDelivery, tasks.HandleEmailDeliveryTask)
-    mux.Handle(tasks.TypeImageResize, tasks.NewImageProcessor())
-    // ...register other handlers...
+	mux := asynq.NewServeMux()
+	mux.HandleFunc("email:welcome", func(ctx context.Context, task *asynq.Task) error {
+		var payload struct {
+			UserID int `json:"user_id"`
+		}
+		if err := json.Unmarshal(task.Payload(), &payload); err != nil {
+			return fmt.Errorf("decode payload: %v: %w", err, asynq.SkipRetry)
+		}
+		log.Printf("send welcome email to user %d", payload.UserID)
+		return nil
+	})
 
-    if err := srv.Run(mux); err != nil {
-        log.Fatalf("could not run server: %v", err)
-    }
+	if err := server.Run(mux); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
-For a more detailed walk-through of the library, see our [Getting Started](https://github.com/hibiken/asynq/wiki/Getting-Started) guide.
+The original [Getting Started guide (upstream wiki)](https://github.com/hibiken/asynq/wiki/Getting-Started)
+covers the core producer/worker model. Use this README and the local `docs/`
+directory for fork-specific behavior.
 
-To learn more about `asynq` features and APIs, see the package [godoc](https://godoc.org/github.com/hibiken/asynq).
+## Bounded Inspector examples
+
+Create the Inspector with the exact Redis configuration used by the workload:
+
+```go
+redisOpt := asynq.RedisClientOpt{
+	Addr:   "127.0.0.1:6379",
+	Prefix: "billing-prod",
+}
+inspector := asynq.NewInspector(redisOpt)
+defer inspector.Close()
+```
+
+Queue names must not begin with `}`, and the first `{...}` pair in `Prefix`,
+if any, must not be empty. These constraints keep all keys for one queue in the
+same Redis Cluster hash slot and turn a potential `CROSSSLOT` failure into an
+early configuration error.
+
+Legacy methods can be cancelled without changing their signatures:
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+queues, err := inspector.WithContext(ctx).Queues()
+```
+
+### Apply a batch policy
+
+`ProcessTaskBatches` repeatedly executes individually atomic, bounded batches.
+A positive `MaxTasks` is a hard cap; zero freezes a budget from the source
+cardinality observed after the first batch.
+
+```go
+result, err := inspector.ProcessTaskBatches(
+	ctx,
+	"critical",
+	"scheduled",
+	"run",
+	"", // Group is required only for aggregating tasks.
+	asynq.TaskBatchPolicy{
+		BatchSize:       200,
+		MaxTasks:        1_000,
+		Timeout:         30 * time.Second,
+		InterBatchDelay: 25 * time.Millisecond,
+	},
+)
+if err != nil {
+	// Preserve result.Processed; do not blindly retry an ambiguous mutation.
+	log.Printf("batch stopped after %d tasks: %v", result.Processed, err)
+}
+```
+
+### Filter, collect, then mutate explicit IDs
+
+`QueryTasks` filters after reading one bounded page; it does not scan an
+unbounded queue. Offset pages are not a point-in-time snapshot: producers and
+workers can shift page boundaries, causing duplicates or omissions. For an
+exhaustive selection, quiesce the selected state while collecting IDs; always
+de-duplicate the collected IDs before mutation.
+
+```go
+page, err := inspector.QueryTasks(ctx, asynq.TaskQuery{
+	Queue:    "critical",
+	State:    asynq.TaskStateRetry,
+	Page:     1,
+	PageSize: 100,
+	Filter: asynq.TaskFilter{
+		Types:         []string{"email:welcome"},
+		ErrorContains: "timeout",
+		Time: &asynq.TaskTimeRange{
+			Field:  asynq.TaskTimeLastFailure,
+			From:   time.Now().Add(-24 * time.Hour),
+			Before: time.Now(),
+		},
+	},
+})
+if err != nil {
+	return err
+}
+
+ids := make([]string, 0, len(page.Tasks))
+for _, task := range page.Tasks {
+	ids = append(ids, task.ID)
+}
+processed, err := inspector.ProcessTaskIDs(ctx, "critical", "archive", ids)
+```
+
+`ProcessTaskIDs` accepts at most 500 unique IDs and stops at the first error.
+Its processed count covers replies received successfully and is therefore a
+confirmed lower bound: if a Redis reply is lost, the failing ID may already
+have changed. Do not blindly retry the failed suffix. For larger selections,
+collect and de-duplicate all IDs before submitting chunks of at most
+`asynq.MaxInspectorBatchSize`.
+
+### Export Inspector telemetry to Prometheus
+
+The operation collector is both a Prometheus collector and an
+`asynq.InspectorOperationObserver`:
+
+```go
+import (
+	asynqmetrics "github.com/pars-aria-labs/asynq/x/metrics"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+operationMetrics := asynqmetrics.NewInspectorMetricsCollector()
+prometheus.MustRegister(operationMetrics)
+inspector.SetOperationObserver(operationMetrics)
+
+// Optional queue gauges and counters; this collector uses pipelined reads.
+prometheus.MustRegister(asynqmetrics.NewQueueMetricsCollector(inspector))
+```
+
+Expose the registry using your normal Prometheus HTTP handler. Observer
+callbacks run synchronously and can arrive concurrently, so custom observers
+must be concurrency-safe, should return quickly, and must not call back into
+the same Inspector. The `redis_round_trips_total` metric counts instrumented
+client executions and pipeline flush attempts; go-redis retries or cluster
+fan-out can involve additional physical network exchanges.
 
 ## Web UI
 
-[Asynqmon](https://github.com/hibiken/asynqmon) is a web based tool for monitoring and administrating Asynq queues and tasks.
+The companion [Asynqmon fork](https://github.com/pars-aria-labs/asynqmon) provides a
+browser UI for queue and task inspection. This repository's CI exercises it
+against the local `asynq` and `x` modules. See [the local integration notes](dev/README.md)
+for workspace and smoke-test instructions.
 
-Here's a few screenshots of the Web UI:
+## Command-line tool
 
-**Queues view**
-
-![Web UI Queues View](https://user-images.githubusercontent.com/11155743/114697016-07327f00-9d26-11eb-808c-0ac841dc888e.png)
-
-**Tasks view**
-
-![Web UI TasksView](https://user-images.githubusercontent.com/11155743/114697070-1f0a0300-9d26-11eb-855c-d3ec263865b7.png)
-
-**Metrics view**
-<img width="1532" alt="Screen Shot 2021-12-19 at 4 37 19 PM" src="https://user-images.githubusercontent.com/10953044/146777420-cae6c476-bac6-469c-acce-b2f6584e8707.png">
-
-**Settings and adaptive dark mode**
-
-![Web UI Settings and adaptive dark mode](https://user-images.githubusercontent.com/11155743/114697149-3517c380-9d26-11eb-9f7a-ae2dd00aad5b.png)
-
-For details on how to use the tool, refer to the tool's [README](https://github.com/hibiken/asynqmon#readme).
-
-## Command Line Tool
-
-Asynq ships with a command line tool to inspect the state of queues and tasks.
-
-To install the CLI tool, run the following command:
+Install the CLI from the canonical module:
 
 ```sh
-go install github.com/hibiken/asynq/tools/asynq@latest
+go install github.com/pars-aria-labs/asynq/tools/asynq@latest
 ```
 
-Here's an example of running the `asynq dash` command:
+Run `asynq dash` for the terminal dashboard. See the
+[CLI documentation](tools/asynq/README.md) for commands and connection flags.
 
-![Gif](/docs/assets/dash.gif)
+## Stability and compatibility
 
-For details on how to use the tool, refer to the tool's [README](/tools/asynq/README.md).
+The module is still pre-v1, so public APIs may change before `v1.0.0`.
+The current CI target is Go 1.25 with Redis 7.4. Standalone and Redis Cluster
+paths are tested separately; because Asynq relies on Lua scripts, validate your
+specific topology and upgrade against staging data before production rollout.
+
+Redis keys and serialized task messages remain compatible with the fork base
+when endpoint, database, and prefix are unchanged. No automatic data migration
+is required for the module-path change.
 
 ## Contributing
 
-We are open to, and grateful for, any contributions (GitHub issues/PRs, feedback on [Gitter channel](https://gitter.im/go-asynq/community), etc) made by the community.
+Issues and pull requests are welcome. Review the
+[contribution guide](CONTRIBUTING.md) and search the
+[current issue tracker](https://github.com/pars-aria-labs/asynq/issues) first.
 
-Please see the [Contribution Guide](/CONTRIBUTING.md) before contributing.
+## License and attribution
 
-## License
-
-Copyright (c) 2019-present [Ken Hibino](https://github.com/hibiken) and [Contributors](https://github.com/hibiken/asynq/graphs/contributors). `Asynq` is free and open-source software licensed under the [MIT License](https://github.com/hibiken/asynq/blob/master/LICENSE). Official logo was created by [Vic Shóstak](https://github.com/koddr) and distributed under [Creative Commons](https://creativecommons.org/publicdomain/zero/1.0/) license (CC0 1.0 Universal).
+Asynq is available under the [MIT License](LICENSE). The original work is
+copyright 2019-present Ken Hibino and
+[upstream contributors](https://github.com/hibiken/asynq/graphs/contributors).
+Original notices and history are preserved. The logo was created by
+[Vic Shóstak](https://github.com/koddr) and released under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).

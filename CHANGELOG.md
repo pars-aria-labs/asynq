@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-09-06
+
+### Changed
+
+- Move the canonical Go module, optional `x` module, and tools module to
+  `github.com/pars-aria-labs/asynq`.
+- Make legacy Inspector methods context-aware through `WithContext`.
+- Pipeline queue-stat collection in groups of at most 100 queues and allow a
+  short-lived memory estimate cache. Exact aggregation work remains
+  proportional to registered groups per queue.
+- Parse Redis INFO values containing colons and numeric timezone offsets such
+  as `+0330` correctly.
+
+### Added
+
+- Add atomic `ProcessTaskBatch` mutations capped at 500 source-state
+  transitions, with a separate 500-entry archive-retention budget, and a
+  `ProcessTaskBatches` policy for fixed budgets, timeout, and backpressure.
+- Add bounded `QueryTasks` filters for task type, last error, and explicit time
+  fields, plus partial-count-aware `ProcessTaskIDs` mutations.
+- Add low-cardinality Inspector telemetry and a Prometheus collector in
+  `x/metrics`.
+- Add standalone, race, three-node Redis Cluster, Asynqmon compatibility, soak,
+  and manual benchmark-comparison release gates.
+
+### Fixed
+
+- Prevent automatic transport replay of bounded Lua mutations while retaining
+  safe `NOSCRIPT` fallback and Redis Cluster redirects.
+- Preserve confirmed processed counts on partial failures.
+- Release unique-task locks and clean aggregation group metadata correctly in
+  bounded delete paths.
+- Reject queue names and Redis prefixes that would create an empty Redis
+  Cluster hash tag and lead to `CROSSSLOT` failures.
+
+See [the full release notes](docs/release-notes-v0.27.0.md) and
+[migration guide](docs/migrating-to-pars-aria-labs.md).
+
 ## [0.26.0] - 2026-02-03
 
 ### Upgrades
