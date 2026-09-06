@@ -5049,7 +5049,7 @@ func TestRemoveQueue(t *testing.T) {
 			}
 		}
 
-		if n := len(r.client.Keys(context.Background(), base.TaskKeyPrefix(tc.qname)+"*").Val()); n != 0 {
+		if n := len(h.GetKeys(t, r.client, base.TaskKeyPrefix(tc.qname)+"*")); n != 0 {
 			t.Errorf("%d keys still exists for tasks", n)
 		}
 	}

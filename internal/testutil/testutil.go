@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"math"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -207,6 +208,43 @@ func FlushDB(tb testing.TB, r redis.UniversalClient) {
 		if err != nil {
 			tb.Fatal(err)
 		}
+	}
+}
+
+// GetKeys returns keys matching pattern across standalone Redis or every
+// primary node in a Redis Cluster.
+func GetKeys(tb testing.TB, r redis.UniversalClient, pattern string) []string {
+	tb.Helper()
+	ctx := context.Background()
+	switch r := r.(type) {
+	case *redis.Client:
+		keys, err := r.Keys(ctx, pattern).Result()
+		if err != nil {
+			tb.Fatal(err)
+		}
+		return keys
+	case *redis.ClusterClient:
+		var (
+			mu   sync.Mutex
+			keys []string
+		)
+		err := r.ForEachMaster(ctx, func(ctx context.Context, c *redis.Client) error {
+			nodeKeys, err := c.Keys(ctx, pattern).Result()
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			keys = append(keys, nodeKeys...)
+			mu.Unlock()
+			return nil
+		})
+		if err != nil {
+			tb.Fatal(err)
+		}
+		return keys
+	default:
+		tb.Fatalf("unsupported Redis client type %T", r)
+		return nil
 	}
 }
 

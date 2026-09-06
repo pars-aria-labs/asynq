@@ -86,6 +86,17 @@ func getRedisConnOpt(tb testing.TB) RedisConnOpt {
 	}
 }
 
+func newTestInspector(tb testing.TB) *Inspector {
+	tb.Helper()
+	inspector := NewInspector(getRedisConnOpt(tb))
+	tb.Cleanup(func() {
+		if err := inspector.Close(); err != nil {
+			tb.Errorf("could not close Inspector: %v", err)
+		}
+	})
+	return inspector
+}
+
 func TestRedisPrefixFromConnOptRejectsEmptyClusterHashTag(t *testing.T) {
 	defer func() {
 		if recover() == nil {

@@ -53,8 +53,7 @@ func testInspectorQueues(t *testing.T, inspector *Inspector, r redis.UniversalCl
 func TestInspectorQueues(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
-	inspector := NewInspector(getRedisConnOpt(t))
-	defer inspector.Close()
+	inspector := newTestInspector(t)
 	testInspectorQueues(t, inspector, r)
 }
 
@@ -70,8 +69,7 @@ func TestInspectorFromRedisClientQueues(t *testing.T) {
 func TestInspectorDeleteQueue(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
-	inspector := NewInspector(getRedisConnOpt(t))
-	defer inspector.Close()
+	inspector := newTestInspector(t)
 	m1 := h.NewTaskMessage("task1", nil)
 	m2 := h.NewTaskMessage("task2", nil)
 	m3 := h.NewTaskMessageWithQueue("task3", nil, "custom")
@@ -159,8 +157,7 @@ func TestInspectorDeleteQueue(t *testing.T) {
 func TestInspectorDeleteQueueErrorQueueNotEmpty(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
-	inspector := NewInspector(getRedisConnOpt(t))
-	defer inspector.Close()
+	inspector := newTestInspector(t)
 	m1 := h.NewTaskMessage("task1", nil)
 	m2 := h.NewTaskMessage("task2", nil)
 	m3 := h.NewTaskMessageWithQueue("task3", nil, "custom")
@@ -215,8 +212,7 @@ func TestInspectorDeleteQueueErrorQueueNotEmpty(t *testing.T) {
 func TestInspectorDeleteQueueErrorQueueNotFound(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
-	inspector := NewInspector(getRedisConnOpt(t))
-	defer inspector.Close()
+	inspector := newTestInspector(t)
 	m1 := h.NewTaskMessage("task1", nil)
 	m2 := h.NewTaskMessage("task2", nil)
 	m3 := h.NewTaskMessageWithQueue("task3", nil, "custom")
@@ -281,7 +277,7 @@ func TestInspectorGetQueueInfo(t *testing.T) {
 	timeCmpOpt := cmpopts.EquateApproxTime(time.Second)
 	ignoreMemUsg := cmpopts.IgnoreFields(QueueInfo{}, "MemoryUsage")
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -427,7 +423,7 @@ func TestInspectorHistory(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
 	now := time.Now().UTC()
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		qname string // queue of interest
@@ -589,7 +585,7 @@ func TestInspectorGetTaskInfo(t *testing.T) {
 		},
 	}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	for _, tc := range tests {
 		got, err := inspector.GetTaskInfo(tc.qname, tc.id)
 		if err != nil {
@@ -673,7 +669,7 @@ func TestInspectorGetTaskInfoError(t *testing.T) {
 		},
 	}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	for _, tc := range tests {
 		info, err := inspector.GetTaskInfo(tc.qname, tc.id)
@@ -694,7 +690,7 @@ func TestInspectorListPendingTasks(t *testing.T) {
 	m3 := h.NewTaskMessageWithQueue("task3", nil, "critical")
 	m4 := h.NewTaskMessageWithQueue("task4", nil, "low")
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		desc    string
@@ -772,7 +768,7 @@ func TestInspectorListActiveTasks(t *testing.T) {
 	m3 := h.NewTaskMessageWithQueue("task3", nil, "custom")
 	m4 := h.NewTaskMessageWithQueue("task4", nil, "custom")
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	now := time.Now()
 
 	tests := []struct {
@@ -867,7 +863,7 @@ func TestInspectorListScheduledTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		desc      string
@@ -937,7 +933,7 @@ func TestInspectorListRetryTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		desc  string
@@ -1008,7 +1004,7 @@ func TestInspectorListArchivedTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(-2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(-2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		desc     string
@@ -1085,7 +1081,7 @@ func TestInspectorListCompletedTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: m3.CompletedAt + m3.Retention}
 	z4 := base.Z{Message: m4, Score: m4.CompletedAt + m4.Retention}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		desc      string
@@ -1144,7 +1140,7 @@ func TestInspectorListAggregatingTasks(t *testing.T) {
 	m4 := h.NewTaskMessageBuilder().SetType("task4").SetQueue("default").SetGroup("group2").Build()
 	m5 := h.NewTaskMessageBuilder().SetType("task5").SetQueue("custom").SetGroup("group1").Build()
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	fxt := struct {
 		tasks     []*h.TaskSeedData
@@ -1244,7 +1240,7 @@ func TestInspectorListPagination(t *testing.T) {
 	defer r.Close()
 	h.SeedPendingQueue(t, r, msgs, base.DefaultQueueName)
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		page     int
@@ -1301,7 +1297,7 @@ func TestInspectorListTasksQueueNotFoundError(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		qname   string
@@ -1348,7 +1344,7 @@ func TestInspectorDeleteAllPendingTasks(t *testing.T) {
 	m3 := h.NewTaskMessage("task3", nil)
 	m4 := h.NewTaskMessageWithQueue("task3", nil, "custom")
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		pending     map[string][]*base.TaskMessage
@@ -1417,7 +1413,7 @@ func TestInspectorDeleteAllScheduledTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		scheduled     map[string][]base.Z
@@ -1483,7 +1479,7 @@ func TestInspectorDeleteAllRetryTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		retry     map[string][]base.Z
@@ -1549,7 +1545,7 @@ func TestInspectorDeleteAllArchivedTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		archived     map[string][]base.Z
@@ -1615,7 +1611,7 @@ func TestInspectorDeleteAllCompletedTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: m3.CompletedAt + m3.Retention}
 	z4 := base.Z{Message: m4, Score: m4.CompletedAt + m4.Retention}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		completed     map[string][]base.Z
@@ -1678,7 +1674,7 @@ func TestInspectorArchiveAllPendingTasks(t *testing.T) {
 	now := time.Now()
 	z1 := base.Z{Message: m1, Score: now.Add(5 * time.Minute).Unix()}
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -1792,7 +1788,7 @@ func TestInspectorArchiveAllScheduledTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -1922,7 +1918,7 @@ func TestInspectorArchiveAllRetryTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -2036,7 +2032,7 @@ func TestInspectorRunAllScheduledTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		scheduled     map[string][]base.Z
@@ -2153,7 +2149,7 @@ func TestInspectorRunAllRetryTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		retry       map[string][]base.Z
@@ -2270,7 +2266,7 @@ func TestInspectorRunAllArchivedTasks(t *testing.T) {
 	z3 := base.Z{Message: m3, Score: now.Add(-2 * time.Minute).Unix()}
 	z4 := base.Z{Message: m4, Score: now.Add(-2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		archived     map[string][]base.Z
@@ -2392,7 +2388,7 @@ func TestInspectorUpdateTaskPayloadUpdatesScheduledTaskPayload(t *testing.T) {
 	z3_old := base.Z{Message: m3_old, Score: now.Add(2 * time.Minute).Unix()}
 	z3_new := base.Z{Message: m3_new, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		scheduled     map[string][]base.Z
@@ -2471,7 +2467,7 @@ func TestInspectorUpdateTaskPayloadError(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		tasks      map[string][]base.Z
@@ -2519,7 +2515,7 @@ func TestInspectorDeleteTaskDeletesPendingTask(t *testing.T) {
 	m1 := h.NewTaskMessage("task1", nil)
 	m2 := h.NewTaskMessage("task2", nil)
 	m3 := h.NewTaskMessageWithQueue("task3", nil, "custom")
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		pending     map[string][]*base.TaskMessage
@@ -2584,7 +2580,7 @@ func TestInspectorDeleteTaskDeletesScheduledTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		scheduled     map[string][]base.Z
@@ -2634,7 +2630,7 @@ func TestInspectorDeleteTaskDeletesRetryTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		retry     map[string][]base.Z
@@ -2684,7 +2680,7 @@ func TestInspectorDeleteTaskDeletesArchivedTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(-15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(-2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		archived     map[string][]base.Z
@@ -2734,7 +2730,7 @@ func TestInspectorDeleteTaskError(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(-15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(-2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		archived     map[string][]base.Z
@@ -2799,7 +2795,7 @@ func TestInspectorRunTaskRunsScheduledTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		scheduled     map[string][]base.Z
@@ -2869,7 +2865,7 @@ func TestInspectorRunTaskRunsRetryTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		retry       map[string][]base.Z
@@ -2938,7 +2934,7 @@ func TestInspectorRunTaskRunsArchivedTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(-15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(-2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		archived     map[string][]base.Z
@@ -3011,7 +3007,7 @@ func TestInspectorRunTaskError(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(-15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(-2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	tests := []struct {
 		archived     map[string][]base.Z
@@ -3107,7 +3103,7 @@ func TestInspectorArchiveTaskArchivesPendingTask(t *testing.T) {
 	m2 := h.NewTaskMessageWithQueue("task2", nil, "custom")
 	m3 := h.NewTaskMessageWithQueue("task3", nil, "custom")
 	now := time.Now()
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -3202,7 +3198,7 @@ func TestInspectorArchiveTaskArchivesScheduledTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -3279,7 +3275,7 @@ func TestInspectorArchiveTaskArchivesRetryTask(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -3354,7 +3350,7 @@ func TestInspectorArchiveTaskError(t *testing.T) {
 	z2 := base.Z{Message: m2, Score: now.Add(15 * time.Minute).Unix()}
 	z3 := base.Z{Message: m3, Score: now.Add(2 * time.Minute).Unix()}
 
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 	inspector.rdb.SetClock(timeutil.NewSimulatedClock(now))
 
 	tests := []struct {
@@ -3447,7 +3443,7 @@ var sortSchedulerEntry = cmp.Transformer("SortSchedulerEntry", func(in []*Schedu
 func TestInspectorSchedulerEntries(t *testing.T) {
 	r := setup(t)
 	rdbClient := rdb.NewRDB(r)
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	now := time.Now().UTC()
 	schedulerID := "127.0.0.1:9876:abc123"
@@ -3594,7 +3590,7 @@ func TestParseOption(t *testing.T) {
 func TestInspectorGroups(t *testing.T) {
 	r := setup(t)
 	defer r.Close()
-	inspector := NewInspector(getRedisConnOpt(t))
+	inspector := newTestInspector(t)
 
 	m1 := h.NewTaskMessageBuilder().SetGroup("group1").Build()
 	m2 := h.NewTaskMessageBuilder().SetGroup("group1").Build()

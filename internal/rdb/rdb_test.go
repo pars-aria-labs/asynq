@@ -2519,7 +2519,7 @@ func TestArchiveTrim(t *testing.T) {
 			}
 
 			// check that only keys present in the archived set are in rdb
-			vals := r.client.Keys(context.Background(), base.TaskKeyPrefix(queue)+"*").Val()
+			vals := h.GetKeys(t, r.client, base.TaskKeyPrefix(queue)+"*")
 			if len(vals) != len(gotArchived) {
 				t.Errorf("len of keys = %v, want %v", len(vals), len(gotArchived))
 				return

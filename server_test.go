@@ -125,6 +125,7 @@ func TestServerErrServerClosed(t *testing.T) {
 
 func TestServerErrNilHandler(t *testing.T) {
 	srv := NewServer(getRedisConnOpt(t), Config{LogLevel: testLogLevel})
+	t.Cleanup(func() { _ = srv.broker.Close() })
 	err := srv.Start(nil)
 	if err == nil {
 		t.Error("Starting server with nil handler: (*Server).Start(nil) did not return error")
@@ -155,6 +156,8 @@ func TestServerWithRedisDown(t *testing.T) {
 	r := rdb.NewRDB(setup(t))
 	testBroker := testbroker.NewTestBroker(r)
 	srv := NewServer(getRedisConnOpt(t), Config{LogLevel: testLogLevel})
+	ownedBroker := srv.broker
+	t.Cleanup(func() { _ = ownedBroker.Close() })
 	srv.broker = testBroker
 	srv.forwarder.broker = testBroker
 	srv.heartbeater.broker = testBroker
@@ -188,6 +191,8 @@ func TestServerWithFlakyBroker(t *testing.T) {
 	testBroker := testbroker.NewTestBroker(r)
 	redisConnOpt := getRedisConnOpt(t)
 	srv := NewServer(redisConnOpt, Config{LogLevel: testLogLevel})
+	ownedBroker := srv.broker
+	t.Cleanup(func() { _ = ownedBroker.Close() })
 	srv.broker = testBroker
 	srv.forwarder.broker = testBroker
 	srv.heartbeater.broker = testBroker
@@ -195,6 +200,7 @@ func TestServerWithFlakyBroker(t *testing.T) {
 	srv.subscriber.broker = testBroker
 
 	c := NewClient(redisConnOpt)
+	t.Cleanup(func() { _ = c.Close() })
 
 	h := func(ctx context.Context, task *Task) error {
 		// force task retry.
