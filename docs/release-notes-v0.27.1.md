@@ -6,10 +6,9 @@ from `v0.27.0` and aligns the published source, operational tools, tutorials,
 and multi-node release checks.
 
 The source lineage is unchanged: this independently maintained fork descends
-from `hibiken/asynq` through `parsidev/asynq`, with direct base tag
-`v0.26.0-parsidev-02` at commit `2f4fd0a`. It is not an official upstream
-Asynq release; the original MIT license, notices, attribution, and Git history
-remain intact.
+from `hibiken/asynq`, with imported history baseline commit `2f4fd0a`. It is not
+an official upstream Asynq release; the original MIT license, notices,
+attribution, and Git history remain intact.
 
 ## What changed
 

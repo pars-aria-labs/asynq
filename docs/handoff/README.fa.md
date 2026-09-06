@@ -12,7 +12,7 @@
 
 ### هویت و منشأ سورس
 
-ماژول canonical اکنون `github.com/pars-aria-labs/asynq` است و نام package در کد همچنان `asynq` باقی مانده است. این سورس از پروژه‌ی MIT-licensed `github.com/hibiken/asynq` منشعب شده و base مستقیم آن fork میانی `github.com/parsidev/asynq`، tag `v0.26.0-parsidev-02` و commit `2f4fd0a` است. تاریخچه، LICENSE و attribution نویسندگان اصلی حفظ شده‌اند و README به‌صراحت توضیح می‌دهد که این fork انتشار رسمی upstream نیست.
+ماژول canonical اکنون `github.com/pars-aria-labs/asynq` است و نام package در کد همچنان `asynq` باقی مانده است. این سورس از پروژه‌ی MIT-licensed `github.com/hibiken/asynq` منشعب شده و مبنای تاریخچه‌ی واردشده‌ی آن commit `2f4fd0a` است. تاریخچه، LICENSE و attribution نویسندگان اصلی حفظ شده‌اند و README به‌صراحت توضیح می‌دهد که این fork انتشار رسمی upstream نیست.
 
 فاز اول:
 
@@ -68,7 +68,7 @@
 
 ## خلاصه تغییرهای asynqmon
 
-checkout sibling ابتدا از `https://github.com/parsidev/asynqmon` ساخته و staging آرشیو به‌صورت conflict-aware روی آن ادغام شد. dependency هسته در نسخه‌ی نهایی به `github.com/pars-aria-labs/asynq` منتقل شده و مقصد نگه‌داری این checkout، `github.com/pars-aria-labs/asynqmon` است؛ هویت مستقل module خود Asynqmon فعلاً `github.com/hibiken/asynqmon` باقی مانده است.
+checkout sibling از تاریخچه‌ی پروژه‌ی MIT-licensed `github.com/hibiken/asynqmon` ساخته شد و staging آرشیو به‌صورت conflict-aware روی آن ادغام شد. dependency هسته در نسخه‌ی نهایی به `github.com/pars-aria-labs/asynq` منتقل شده و مقصد نگه‌داری این checkout، `github.com/pars-aria-labs/asynqmon` است؛ هویت مستقل module خود Asynqmon فعلاً `github.com/hibiken/asynqmon` باقی مانده است.
 
 - handlerهای queue/task/group از batch APIهای جدید در صورت وجود استفاده می‌کنند و با dependency قدیمی fallback دارند؛
 - bulk endpointهای موجود query اختیاری `batch_size=1..500` و فیلد `remaining` دارند؛

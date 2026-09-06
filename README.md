@@ -15,9 +15,8 @@ delivery, scheduling, retries, and recovery across processes and machines.
 ## Source and fork provenance
 
 - Original upstream: [`hibiken/asynq`](https://github.com/hibiken/asynq).
-- Intermediate fork: [`parsidev/asynq`](https://github.com/parsidev/asynq).
-- Fork base: tag [`v0.26.0-parsidev-02`](https://github.com/parsidev/asynq/tree/v0.26.0-parsidev-02),
-  commit [`2f4fd0a`](https://github.com/parsidev/asynq/commit/2f4fd0a).
+- Imported history baseline: commit
+  [`2f4fd0a`](https://github.com/pars-aria-labs/asynq/commit/2f4fd0a).
 - Canonical module maintained here: `github.com/pars-aria-labs/asynq`.
 
 This is an independently maintained fork and is **not an official upstream

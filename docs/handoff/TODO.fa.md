@@ -28,7 +28,7 @@
 
 ## P2: ادغام کنترل‌شده asynqmon — انجام شد
 
-- چون sibling اولیه در محیط حاضر نبود، checkout متناظر `parsidev/asynqmon` در `/root/asynqmon` ساخته شد.
+- چون sibling اولیه در محیط حاضر نبود، checkout سازگار با تاریخچه‌ی upstream در `/root/asynqmon` ساخته شد.
 - hash فایل‌های handler با manifest آرشیو تطبیق داشت و تغییرهای Go ادغام شد.
 - UI آرشیو روی یک migration متفاوت MUI/React ساخته شده بود؛ قابلیت bulk به‌صورت دستی با React 16، Material UI 4، Jest و axios همین checkout ادغام شد و فایل‌های unrelated جایگزین نشدند.
 - endpointهای قدیمی با query اختیاری `batch_size=1..500` پاسخ `remaining` می‌دهند؛ dependency فاقد batch API همچنان از مسیر legacy استفاده می‌کند.
@@ -81,7 +81,7 @@ importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` �
 
 - مسیر canonical ماژول‌های root، `x` و `tools` به `github.com/pars-aria-labs/asynq` منتقل شد و package identifier همچنان `asynq` باقی ماند.
 - importهای source، test، example، ابزار، protobuf metadata و مصرف‌کننده‌ی Asynqmon هماهنگ شدند.
-- README منبع اصلی `hibiken/asynq`، fork میانی `parsidev/asynq` و base دقیق `v0.26.0-parsidev-02`/`2f4fd0a` را ثبت می‌کند و تغییرهای fork را همراه نمونه‌های آموزشی توضیح می‌دهد.
+- README منبع اصلی `hibiken/asynq` و مبنای دقیق تاریخچه‌ی واردشده در commit `2f4fd0a` را ثبت می‌کند و تغییرهای fork را همراه نمونه‌های آموزشی توضیح می‌دهد.
 - release note، راهنمای migration و compile-time contract test برای API عمومی اضافه شد.
 - soak test اختیاری producer، mutation، stats و `SCRIPT FLUSH` هم‌زمان را با namespace یکتا و cleanup محدود به همان namespace اجرا می‌کند.
 - اجرای واقعی soak نهایی پاس شد: 2499 task enqueue و دقیقاً 2499 task پردازش شد؛ 3106 batch call، 120 stats read و 16 script flush ثبت شد.

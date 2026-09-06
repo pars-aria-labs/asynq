@@ -7,10 +7,11 @@ application code changes only at import and dependency boundaries.
 ## Source lineage
 
 This repository is derived from the MIT-licensed
-[`hibiken/asynq`](https://github.com/hibiken/asynq) project. Its immediate fork
-base was [`parsidev/asynq`](https://github.com/parsidev/asynq), tag
-`v0.26.0-parsidev-02`, commit `2f4fd0a`. Original copyright notices, commit
-history, license text, and historical issue/PR links are retained.
+[`hibiken/asynq`](https://github.com/hibiken/asynq) project. The imported
+history baseline is commit
+[`2f4fd0a`](https://github.com/pars-aria-labs/asynq/commit/2f4fd0a).
+Original copyright notices, commit history, license text, and historical
+issue/PR links are retained.
 
 This fork is maintained independently and is not an official release of the
 upstream project.
