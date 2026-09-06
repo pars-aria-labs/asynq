@@ -131,12 +131,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go test -p=1 -race . ./internal/rdb -args \
-            -redis_cluster \
-            -redis_cluster_addrs="$REDIS_CLUSTER_ADDRS"
-          (cd x && go test -p=1 -race ./rate -args \
-            -redis_cluster \
-            -redis_cluster_addrs="$REDIS_CLUSTER_ADDRS")
+
+          run_cluster_test() {
+            local label="$1"
+            shift
+            local test_log
+            test_log="$(mktemp)"
+
+            if "$@" 2>&1 | tee "$test_log"; then
+              return 0
+            fi
+
+            local annotation=""
+            local line
+            while IFS= read -r line; do
+              line="${line:0:600}"
+              line="${line//'%'/'%25'}"
+              line="${line//$'\r'/'%0D'}"
+              annotation+="${line}%0A"
+            done < <(tail -n 60 "$test_log")
+            echo "::error title=${label} failed::${annotation}"
+            return 1
+          }
+
+          run_cluster_test "Core Redis Cluster tests" \
+            go test -p=1 -race . ./internal/rdb -args \
+              -redis_cluster \
+              -redis_cluster_addrs="$REDIS_CLUSTER_ADDRS"
+          (
+            cd x
+            run_cluster_test "x/rate Redis Cluster tests" \
+              go test -p=1 -race ./rate -args \
+                -redis_cluster \
+                -redis_cluster_addrs="$REDIS_CLUSTER_ADDRS"
+          )
 
       - name: Upload coverage to Codecov
         if: matrix.redis-mode == 'standalone'
