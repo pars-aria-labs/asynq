@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-07
+
+### Changed
+
+- Consolidate installation, migration, Inspector, metrics, CLI, testing, and
+  release guidance into one human-written root README while retaining the
+  existing visual assets.
+- Record the upstream fork source explicitly and keep every active Go module,
+  import, workflow, and support link on the canonical repository identity.
+- Replace committed development workspaces with temporary workspaces created
+  by CI and the Makefile, while preserving the Inspector soak and Asynqmon
+  compatibility checks under `.github/scripts`.
+- Generate future GitHub release notes in the release workflow instead of
+  requiring version-specific files in `docs`.
+
+### Compatibility
+
+- Keep the public Go API, Redis key layout, and serialized task format
+  unchanged from `v1.0.0`.
+
 ## [1.0.0] - 2026-09-07
 
 ### Added
@@ -37,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Apply Semantic Versioning to the v1 public API. Backward-incompatible API
   changes require a new major-version module path.
 
-See the [v1.0.0 release notes](docs/release-notes-v1.0.0.md).
+Installation, upgrade, and verification guidance lives in the
+[README](README.md).
 
 ## [1.0.0-beta.1] - 2026-09-06
 
@@ -62,8 +83,6 @@ See the [v1.0.0 release notes](docs/release-notes-v1.0.0.md).
 - Mark the release as a preview: public API details may still change before
   final `v1.0.0`.
 
-See the [v1.0.0-beta.1 release notes](docs/release-notes-v1.0.0-beta.1.md).
-
 ## [0.27.1] - 2026-09-06
 
 ### Added
@@ -84,8 +103,7 @@ See the [v1.0.0-beta.1 release notes](docs/release-notes-v1.0.0-beta.1.md).
 - Correct the package example and clarify fork-owned support, conduct, soak,
   CLI, prefix, TLS, and cluster instructions.
 
-No Redis schema or serialized task format changes are included. See the
-[v0.27.1 release notes](docs/release-notes-v0.27.1.md).
+No Redis schema or serialized task format changes are included.
 
 ## [0.27.0] - 2026-09-06
 
@@ -122,8 +140,7 @@ No Redis schema or serialized task format changes are included. See the
 - Reject queue names and Redis prefixes that would create an empty Redis
   Cluster hash tag and lead to `CROSSSLOT` failures.
 
-See [the full release notes](docs/release-notes-v0.27.0.md) and
-[migration guide](docs/migrating-to-pars-aria-labs.md).
+See the [README](README.md) for migration guidance and current examples.
 
 ## [0.26.0] - 2026-02-03
 

@@ -9,8 +9,8 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/mattn/go-runewidth v0.0.29
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/pars-aria-labs/asynq v1.0.0
-	github.com/pars-aria-labs/asynq/x v1.0.0
+	github.com/pars-aria-labs/asynq v1.0.1
+	github.com/pars-aria-labs/asynq/x v1.0.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/spf13/cobra v1.1.1

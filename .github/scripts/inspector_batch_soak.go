@@ -1,6 +1,6 @@
 //go:build ignore
 
-// Run explicitly with `make soak-inspector-batch`; see docs/inspector-soak.md.
+// Run explicitly with `make soak-inspector-batch`; see the root README.
 package main
 
 import (

@@ -2,125 +2,101 @@
 
 # Asynq
 
-A simple, reliable, and efficient Redis-backed distributed task queue for Go.
+Asynq is a Redis-backed task queue for Go. An application puts work on a
+queue, one or more workers process it in the background, and Redis keeps the
+state that lets the system schedule, retry, recover, and distribute that work.
+
+The API is deliberately small enough for a first background job and sturdy
+enough for a service with several queues, priorities, workers, and deployment
+namespaces.
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/pars-aria-labs/asynq.svg)](https://pkg.go.dev/github.com/pars-aria-labs/asynq)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pars-aria-labs/asynq)](https://goreportcard.com/report/github.com/pars-aria-labs/asynq)
 [![Build](https://github.com/pars-aria-labs/asynq/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/pars-aria-labs/asynq/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Clients enqueue tasks, servers process them concurrently, and Redis coordinates
-delivery, scheduling, retries, and recovery across processes and machines.
+## Where this repository came from
 
-## Source and repository identity
+This repository is a fork of
+[`https://github.com/hibiken/asynq`](https://github.com/hibiken/asynq).
+The upstream Git history, MIT license, and original copyright notices are
+preserved here.
 
-- Canonical source and module:
-  [`pars-aria-labs/asynq`](https://github.com/pars-aria-labs/asynq).
-- Imported history baseline: commit
-  [`2f4fd0a`](https://github.com/pars-aria-labs/asynq/commit/2f4fd0a).
+Development of this fork is maintained at
+[`github.com/pars-aria-labs/asynq`](https://github.com/pars-aria-labs/asynq).
+This is an independently maintained fork, not an official release from the
+upstream maintainers. Applications should use the canonical address above for
+every import, module, issue, and pull request.
 
-This is an independently maintained fork and is **not an official upstream
-Asynq release**. The project remains MIT-licensed; original copyright notices,
-license text, Git history, and attribution are retained. All current module,
-documentation, issue, and contribution links use the canonical repository.
+## What changed in this fork
 
-See the [migration guide](docs/migrating-to-pars-aria-labs.md) and
-[v1.0.0 release notes](docs/release-notes-v1.0.0.md) for compatibility
-details. The [v1.0.0-beta.1 notes](docs/release-notes-v1.0.0-beta.1.md)
-preserve the preview history, while the
-[v0.27.1 notes](docs/release-notes-v0.27.1.md) describe the final pre-v1
-patch release.
+The familiar client-and-worker model is still here. Most of our work has gone
+into the rough edges that tend to appear when Asynq is operated in production:
 
-## What this fork adds
+- The root, `x`, and `tools` Go modules, generated metadata, examples, CI, and
+  support links now share one canonical repository identity. The Go package
+  name is still `asynq`.
+- Redis prefixes are handled consistently by Inspectors, queue and task
+  mutations, server and scheduler metadata, the CLI, and the Prometheus
+  exporter. Separate deployments can safely share one Redis database without
+  seeing each other's Asynq state.
+- Inspector mutations are bounded. One atomic call changes at most 500 source
+  tasks, archive cleanup has its own 500-entry budget, and deletion also
+  removes unique locks and aggregation metadata.
+- Administrative work can now be cancelled and paced with `WithContext`,
+  `ProcessTaskBatches`, `QueryTasks`, and `ProcessTaskIDs`. Partial progress is
+  returned explicitly instead of being hidden behind an all-or-nothing API.
+- Queue snapshots and server, worker, and scheduler reads use pipelines.
+  Queue batches are flushed in groups of at most 100. Only approximate memory
+  samples may be cached for a short time; queue counts remain live.
+- `x/metrics` includes low-cardinality Inspector telemetry suitable for
+  Prometheus. Queue names, task IDs, group names, and raw error strings are not
+  used as labels for operation telemetry.
+- The CLI now carries the same Redis prefix through standalone and Cluster
+  connections. The exporter gained prefix support and Inspector telemetry;
+  the existing TLS and ACL options remain available. CI covers race-enabled
+  standalone Redis, a real three-node Redis Cluster, and Asynqmon.
+- Stable and beta releases are built by GitHub Actions for Linux, macOS, and
+  Windows on both `amd64` and `arm64`. Every release includes SHA-256 checksums
+  and GitHub build-provenance attestations.
 
-The core enqueue and worker model remains familiar, with additional operational
-safety and observability around Inspector workflows:
-
-- **Redis namespace isolation:** Inspector reads and mutations consistently
-  honor `RedisClientOpt.Prefix`, including queue, task, group, worker, server,
-  and scheduler metadata.
-- **Bounded administration:** atomic Inspector task mutations are limited to
-  500 source-state transitions. Archive actions have a separate bounded budget
-  of 500 retention evictions. These mutating Lua commands disable ambiguous
-  transport retries while retaining safe `NOSCRIPT` recovery and Redis Cluster
-  redirection. Deletion also cleans unique-task locks and aggregation metadata.
-- **Controlled multi-batch work:** `TaskBatchPolicy` adds a fixed work budget,
-  whole-operation timeout, and context-aware delay between batches.
-- **Lower read amplification:** queue snapshots are pipelined in groups of at
-  most 100 queues, while server, worker, and scheduler metadata reads are also
-  pipelined. Only approximate memory samples have an optional short-lived
-  cache. Exact aggregation statistics still scale with the number of groups
-  registered for each queue.
-- **Cancellation and explicit selection:** `Inspector.WithContext` makes legacy
-  methods cancellable. `QueryTasks` filters one bounded page by type, last-error
-  substring, or time range, and `ProcessTaskIDs` mutates an explicit list of at
-  most 500 IDs.
-- **Low-cardinality telemetry:** an Inspector operation observer reports
-  duration, outcome, confirmed work, and instrumented Redis client executions.
-  The optional `x/metrics` collector exports these observations to Prometheus
-  without queue, task, group, or raw-error labels.
-- **Operational verification:** CI covers race-enabled standalone Redis and a
-  three-node Redis Cluster, plus the companion
-  [Asynqmon checkout](https://github.com/pars-aria-labs/asynqmon). A separate
-  [opt-in soak harness](docs/inspector-soak.md) exercises concurrent producers,
-  bounded mutations, pipelined reads, cancellation, and repeated script-cache
-  flushes.
-
-The detailed contracts and supported state/action combinations are documented
-in [Bounded Inspector operations](docs/batch-inspector.md).
-
-## Core capabilities
+## Features
 
 - At-least-once task execution
 - Immediate, delayed, and periodic scheduling
-- Automatic retry and worker-crash recovery
-- Weighted and strict-priority queues
+- Automatic retries and worker-crash recovery
+- Weighted or strict-priority queues
 - Per-task timeout, deadline, retention, and uniqueness
-- Task aggregation
-- Middleware-based handlers
-- Queue pause/resume, Inspector APIs, CLI, Web UI, and Prometheus integration
-- Direct Redis, Sentinel, and Redis Cluster connection options
+- Task aggregation and middleware-based handlers
+- Direct Redis, Sentinel, and Redis Cluster connections
+- Inspector APIs, a terminal CLI, a web UI, and Prometheus integration
 
-Start with the quickstart below, then use the local `docs/` directory for
-bounded Inspector operations, migration, observability, and soak testing.
+## Requirements and installation
 
-## Install or migrate
-
-The module requires Go 1.25. The current stable release is `v1.0.0`. Pin every
-Asynq module used by your application to that same version:
+The current stable release is `v1.0.1` and requires Go 1.25. Install the root
+module, and install the optional `x` module only if your application imports a
+package below `x/`:
 
 ```sh
-go get github.com/pars-aria-labs/asynq@v1.0.0
-go get github.com/pars-aria-labs/asynq/x@v1.0.0
+go get github.com/pars-aria-labs/asynq@v1.0.1
+go get github.com/pars-aria-labs/asynq/x@v1.0.1 # optional
+go mod tidy
 ```
 
-The second command installs the optional `x` module used by packages such as
-`x/metrics`. If your application does not import an `x` package, you can omit
-that command. If you are upgrading from `v0.27.1` or `v1.0.0-beta.1`, review
-the migration guide and validate the upgrade against staging data first.
-
-The canonical import path is shown below. The exported package name remains
-`asynq`:
+Use this import path:
 
 ```go
 import "github.com/pars-aria-labs/asynq"
 ```
 
-There is deliberately no `/v1` suffix in that path. Under Go's semantic import
-versioning rules, the original module path is used for major versions zero and
-one; a major-version suffix becomes necessary only for `v2` and later.
+Do not append `/v1`. Go keeps the original module path for major versions zero
+and one; a suffix becomes necessary only for `v2` and later.
 
-After updating module references, run `go mod tidy` and your test suite. No
-Redis data rewrite is required solely because of the Go module path; keep the
-Redis endpoint, database, and prefix unchanged. See
-[Migrating to the Pars Aria Labs module](docs/migrating-to-pars-aria-labs.md)
-before upgrading a production deployment.
+## Quick start
 
-## Quickstart
-
-Use the same Redis settings for producers, workers, schedulers, and Inspectors.
-A non-empty prefix stores keys under `<Prefix>:asynq:*`, allowing independent
-deployments to share a Redis database without sharing Asynq state.
+The producer and worker must use the same Redis address, database, and prefix.
+The prefix in these examples keeps the application isolated from other Asynq
+installations using the same Redis database.
 
 ### Enqueue a task
 
@@ -201,75 +177,103 @@ func main() {
 		return nil
 	})
 
-	if err := server.Run(mux); err != nil {
+if err := server.Run(mux); err != nil {
 		log.Fatal(err)
 	}
 }
 ```
 
-The producer and worker examples above cover the core execution model. Use this
-README and the local `docs/` directory for the maintained operational behavior.
+Asynq uses at-least-once delivery, so a task can be delivered more than once.
+Whenever possible, make handlers idempotent—for example, record a business
+operation ID before sending an email or charging a payment.
 
-## Bounded Inspector examples
+![A task moving through an Asynq queue](docs/assets/task-queue.png)
 
-Create the Inspector with the exact Redis configuration used by the workload:
+## Redis namespaces and Cluster
+
+With `Prefix: "billing-prod"`, keys are stored below
+`billing-prod:asynq:*`. Use that exact prefix for every producer, worker,
+scheduler, Inspector, CLI command, and metrics collector that belongs to the
+same deployment. A mismatched prefix usually looks like an empty installation;
+it does not mean the tasks disappeared.
+
+Redis Cluster uses database zero and a seed list instead of one address:
 
 ```go
-redisOpt := asynq.RedisClientOpt{
-	Addr:   "127.0.0.1:6379",
+redisOpt := asynq.RedisClusterClientOpt{
+	Addrs: []string{
+		"redis-0:7000",
+		"redis-1:7001",
+		"redis-2:7002",
+	},
 	Prefix: "billing-prod",
 }
-inspector := asynq.NewInspector(redisOpt)
-defer inspector.Close()
 ```
 
-Queue names must not begin with `}`, and the first `{...}` pair in `Prefix`,
-if any, must not be empty. These constraints keep all keys for one queue in the
-same Redis Cluster hash slot and turn a potential `CROSSSLOT` failure into an
-early configuration error.
+Queue names must not begin with `}`, and the first `{...}` pair in a prefix
+must not be empty. Those checks keep every multi-key queue operation in one
+Redis Cluster hash slot and turn a later `CROSSSLOT` error into an early
+configuration error.
 
-Legacy methods can be cancelled without changing their signatures:
+## Safe Inspector operations
+
+Create one Inspector from the same Redis options as the workload and close the
+original Inspector when the process is done:
 
 ```go
+inspector := asynq.NewInspector(redisOpt)
+defer inspector.Close()
+
 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 defer cancel()
 
 queues, err := inspector.WithContext(ctx).Queues()
 ```
 
-### Apply a batch policy
+`WithContext` returns a lightweight view backed by the original connection.
+Do not close that derived view; close the original Inspector.
 
-`ProcessTaskBatches` repeatedly executes individually atomic, bounded batches.
-A positive `MaxTasks` is a hard cap; zero freezes a budget from the source
-cardinality observed after the first batch.
+`ProcessTaskBatch` changes no more than 500 tasks in one atomic call. Active
+tasks are intentionally excluded because a worker owns their lease.
+
+| Source state | Delete | Run now | Archive |
+| --- | --- | --- | --- |
+| `pending` | yes | no | yes |
+| `scheduled` | yes | yes | yes |
+| `retry` | yes | yes | yes |
+| `archived` | yes | yes | no |
+| `completed` | yes | no | no |
+| `aggregating` | yes | yes | yes |
+
+For longer jobs, let `ProcessTaskBatches` enforce a total budget, deadline, and
+small pause between Redis calls:
 
 ```go
 result, err := inspector.ProcessTaskBatches(
 	ctx,
 	"critical",
-	"scheduled",
+	"retry",
 	"run",
-	"", // Group is required only for aggregating tasks.
+	"", // A group is required only for aggregating tasks.
 	asynq.TaskBatchPolicy{
-		BatchSize:       200,
-		MaxTasks:        1_000,
-		Timeout:         30 * time.Second,
-		InterBatchDelay: 25 * time.Millisecond,
+		BatchSize:       250,
+		MaxTasks:        2_000,
+		Timeout:         20 * time.Second,
+		InterBatchDelay: 50 * time.Millisecond,
 	},
 )
 if err != nil {
-	// Preserve result.Processed; do not blindly retry an ambiguous mutation.
-	log.Printf("batch stopped after %d tasks: %v", result.Processed, err)
+	// Processed is confirmed progress, even when the final call was ambiguous.
+	log.Printf("stopped after %d tasks: %v", result.Processed, err)
 }
 ```
 
-### Filter, collect, then mutate explicit IDs
+Each batch is atomic; the entire series is not. If a transport timeout occurs,
+Redis may have committed the last mutation even though its reply was lost.
+Keep the confirmed processed count, inspect current state, and do not blindly
+retry the failed suffix.
 
-`QueryTasks` filters after reading one bounded page; it does not scan an
-unbounded queue. Offset pages are not a point-in-time snapshot: producers and
-workers can shift page boundaries, causing duplicates or omissions. For an
-exhaustive selection, quiesce the selected state while collecting IDs; always
-de-duplicate the collected IDs before mutation.
+`QueryTasks` filters one bounded page rather than scanning an unlimited queue:
 
 ```go
 page, err := inspector.QueryTasks(ctx, asynq.TaskQuery{
@@ -296,88 +300,326 @@ for _, task := range page.Tasks {
 	ids = append(ids, task.ID)
 }
 processed, err := inspector.ProcessTaskIDs(ctx, "critical", "archive", ids)
+if err != nil {
+	log.Printf("archived %d confirmed tasks: %v", processed, err)
+	return err
+}
 ```
 
-`ProcessTaskIDs` accepts at most 500 unique IDs and stops at the first error.
-Its processed count covers replies received successfully and is therefore a
-confirmed lower bound: if a Redis reply is lost, the failing ID may already
-have changed. Do not blindly retry the failed suffix. For larger selections,
-collect and de-duplicate all IDs before submitting chunks of at most
-`asynq.MaxInspectorBatchSize`.
+Pagination over a live queue is not a snapshot. If a complete selection
+matters, quiesce every producer, worker, and scheduler that can change the
+selected state while collecting pages. De-duplicate all IDs before mutating
+chunks of at most `asynq.MaxInspectorBatchSize`.
 
-### Export Inspector telemetry to Prometheus
+For queue dashboards, `GetQueueInfoBatch` keeps input order and duplicates and
+pipelines up to 100 queues per flush:
 
-The operation collector is both a Prometheus collector and an
-`asynq.InspectorOperationObserver`:
+```go
+infos, err := inspector.GetQueueInfoBatch(
+	ctx,
+	[]string{"critical", "default", "critical"},
+	15*time.Second, // TTL for approximate memory samples only.
+)
+```
+
+## Prometheus metrics
+
+The optional collector is both a Prometheus collector and an Inspector
+observer. Register it once, attach it to the Inspector, and expose the registry
+through the usual Prometheus HTTP handler:
 
 ```go
 import (
+	"log"
+	"net/http"
+
 	asynqmetrics "github.com/pars-aria-labs/asynq/x/metrics"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 operationMetrics := asynqmetrics.NewInspectorMetricsCollector()
-prometheus.MustRegister(operationMetrics)
 inspector.SetOperationObserver(operationMetrics)
 
-// Optional queue gauges and counters; this collector uses pipelined reads.
-prometheus.MustRegister(asynqmetrics.NewQueueMetricsCollector(inspector))
+registry := prometheus.NewRegistry()
+registry.MustRegister(
+	asynqmetrics.NewQueueMetricsCollector(inspector),
+	operationMetrics,
+)
+
+http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+log.Fatal(http.ListenAndServe(":9876", nil))
 ```
 
-Expose the registry using your normal Prometheus HTTP handler. Observer
-callbacks run synchronously and can arrive concurrently, so custom observers
-must be concurrency-safe, should return quickly, and must not call back into
-the same Inspector. The `redis_round_trips_total` metric counts instrumented
-client executions and pipeline flush attempts; go-redis retries or cluster
-fan-out can involve additional physical network exchanges.
+Inspector telemetry exports these low-cardinality series:
 
-## Web UI
+- `asynq_inspector_operations_total`
+- `asynq_inspector_items_processed_total`
+- `asynq_inspector_redis_round_trips_total`
+- `asynq_inspector_operation_duration_seconds`
 
-The companion [Asynqmon fork](https://github.com/pars-aria-labs/asynqmon) provides a
-browser UI for queue and task inspection. This repository's CI exercises it
-against the local `asynq` and `x` modules. See [the local integration notes](dev/README.md)
-for workspace and smoke-test instructions.
+The round-trip counter measures instrumented client executions and pipeline
+flush attempts, not every physical network exchange hidden inside retries or
+cluster fan-out. Observer callbacks are synchronous and may arrive
+concurrently, so a custom observer should be fast, concurrency-safe, and must
+not call back into the same Inspector.
+
+For a standalone Redis server, the bundled exporter is the quickest option:
+
+```sh
+(cd tools && go run ./metrics_exporter \
+  -redis-addr=127.0.0.1:6379 \
+  -redis-db=2 \
+  -redis-prefix=billing-prod \
+  -port=9876)
+```
+
+Configure Prometheus to scrape port `9876`. The bundled executable currently
+uses a standalone Redis connection; for Redis Cluster, embed the collectors in
+an application that creates its Inspector with `RedisClusterClientOpt`.
 
 ## Command-line tool
 
-Install the CLI from the canonical module:
+The CLI is a separate module. Pin it to the same release as the services it
+administers:
 
 ```sh
-go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.0
+go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.1
+asynq version
 ```
 
-Run `asynq dash` for the terminal dashboard. See the
-[CLI documentation](tools/asynq/README.md) for commands and connection flags.
-Pinning the version makes local, CI, and production administration environments
-install the same reviewed CLI build.
+Common commands include:
 
-Maintainers can reproduce the tag and GitHub Actions publication sequence by
-following the [release guide](docs/releasing.md).
+| Command | What it does |
+| --- | --- |
+| `asynq dash` | Opens the interactive terminal dashboard |
+| `asynq queue list` | Lists queues and their current state |
+| `asynq task list` | Lists tasks by queue and state |
+| `asynq task inspect` | Shows one task |
+| `asynq task enqueue` | Enqueues a task from the shell |
+| `asynq group list` | Lists aggregation groups |
+| `asynq cron list` | Lists scheduler entries |
+| `asynq server list` | Lists active servers |
 
-## Stability and compatibility
+Pass the same connection data used by the application:
 
-`v1.0.0` establishes the stable v1 API line. Releases follow Semantic
-Versioning: backward-compatible features and fixes may be added within v1, but
-an incompatible public API change requires a new major version. The current CI
-target is Go 1.25 with Redis 7.4. Standalone and Redis Cluster paths are tested
-separately; because Asynq relies on Lua scripts, validate your specific topology
-and upgrade against staging data before production rollout.
+```sh
+asynq queue list \
+  --uri=127.0.0.1:6379 \
+  --db=2 \
+  --prefix=billing-prod
 
-Redis keys and serialized task messages remain compatible with the fork base
-when endpoint, database, and prefix are unchanged. No automatic data migration
-is required for the module-path change.
+asynq stats \
+  --cluster \
+  --cluster_addrs=redis-0:7000,redis-1:7001,redis-2:7002 \
+  --prefix=billing-prod
+```
+
+Global flags include `--username`, `--password`, `--tls`, `--tls_server`,
+`--insecure`, and `--config`. Flags override environment and config-file
+values. Keep passwords out of shell history, and never use `--insecure` in
+production merely to silence a certificate error.
+
+![Asynq terminal dashboard](docs/assets/dash.gif)
+
+## Web UI
+
+[`pars-aria-labs/asynqmon`](https://github.com/pars-aria-labs/asynqmon) is the
+companion browser interface for queue and task inspection. Give it the same
+Redis endpoint, database, credentials, and prefix as the workers.
+
+![Asynqmon queue view](docs/assets/asynqmon-queues-view.png)
+
+## Upgrading an existing application
+
+Changing the Go module path does not rewrite Redis keys or task payloads. The
+current code keeps the established wire format, so existing queues remain
+readable when the Redis endpoint, database, and prefix stay the same.
+
+For a production upgrade:
+
+1. Pin the root and optional `x` modules to the same release.
+2. Test against a copy of production data or a staging Redis instance.
+3. Exercise enqueue, processing, retry, scheduling, uniqueness, aggregation,
+   and administrative flows.
+4. Compare queue counts and metrics before and after the deployment.
+5. Roll out gradually and keep the previous application build available for
+   rollback.
+
+Avoid a permanent `replace` directive that disguises one module identity as
+another. Use a temporary Go workspace for simultaneous local development and
+use normal versioned modules in released applications.
+
+## Testing changes
+
+The repository contains three Go modules, so test each graph explicitly:
+
+```sh
+GOWORK=off go test ./...
+GOWORK=off go vet ./...
+(cd x && GOWORK=off go test ./... && GOWORK=off go vet ./...)
+(cd tools && GOWORK=off go test ./... && GOWORK=off go vet ./...)
+```
+
+Redis-backed tests can flush their assigned databases. Run them only against
+a disposable Redis instance, never production:
+
+```sh
+redis_addr=127.0.0.1:6379
+go test -count=1 -p=1 -race . -args -redis_addr="$redis_addr"
+go test -count=1 -p=1 -race ./internal/rdb -args -redis_addr="$redis_addr"
+(cd x && go test -count=1 -p=1 -race ./rate -args -redis_addr="$redis_addr")
+```
+
+The opt-in soak test also runs `SCRIPT FLUSH`, which affects the entire Redis
+server rather than one database. Use a dedicated disposable server:
+
+```sh
+ASYNQ_TEST_REDIS_ADDR=127.0.0.1:6379 make soak-inspector-batch
+```
+
+If the Asynqmon repository is checked out beside this one, run
+`make test-asynqmon` to test it against the local root and `x` modules. The
+Makefile and CI create temporary Go workspaces; no committed development
+workspace is required.
+
+## Publishing a new release
+
+Use Semantic Versioning on the v1 line:
+
+- `v1.0.2` for the next backward-compatible fix
+- `v1.1.0` for a backward-compatible feature
+- `v1.1.0-beta.1` for a preview of the next minor release
+
+Prepare one release commit. Update `internal/base.Version` without the leading
+`v`, the root requirement in `x/go.mod`, the root and `x` requirements in
+`tools/go.mod`, the current-version examples in this README, and
+`CHANGELOG.md`. Review public API changes before a stable release.
+
+For changes that span all three modules, create a temporary local workspace:
+
+```sh
+repo_root=$(pwd)
+workspace_dir=$(mktemp -d)
+(cd "$workspace_dir" && GOWORK=off go work init \
+  "$repo_root" "$repo_root/x" "$repo_root/tools")
+
+root_version=$(awk \
+  '$1 == "github.com/pars-aria-labs/asynq" { print $2 }' \
+  "$repo_root/x/go.mod")
+x_version=$(awk \
+  '$1 == "github.com/pars-aria-labs/asynq/x" { print $2 }' \
+  "$repo_root/tools/go.mod")
+GOWORK="$workspace_dir/go.work" go work edit \
+  "-replace=github.com/pars-aria-labs/asynq@${root_version}=$repo_root" \
+  "-replace=github.com/pars-aria-labs/asynq/x@${x_version}=$repo_root/x"
+
+GOWORK="$workspace_dir/go.work" go test ./...
+GOWORK="$workspace_dir/go.work" go vet ./...
+(cd x && \
+  GOWORK="$workspace_dir/go.work" go test ./... && \
+  GOWORK="$workspace_dir/go.work" go vet ./...)
+(cd tools && \
+  GOWORK="$workspace_dir/go.work" go test ./... && \
+  GOWORK="$workspace_dir/go.work" go vet ./...)
+actionlint .github/workflows/*.yml
+git diff --check
+```
+
+Push the release commit to `main` and wait until CI succeeds on that exact SHA.
+Then create three annotated tags on the reviewed commit and send only those
+refs in one atomic push:
+
+```sh
+set -euo pipefail
+
+version=v1.0.2
+git fetch origin main
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Refusing to tag a working tree with uncommitted changes" >&2
+  exit 1
+fi
+
+candidate=$(git rev-parse HEAD)
+
+test "$candidate" = "$(git rev-parse origin/main)"
+
+for tag in "$version" "x/$version" "tools/$version"; do
+  if git show-ref --verify --quiet "refs/tags/$tag" || \
+     git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+    echo "Refusing to reuse existing tag: $tag" >&2
+    exit 1
+  fi
+done
+
+git tag -a "$version" "$candidate" -m "Asynq $version"
+git tag -a "x/$version" "$candidate" -m "Asynq x $version"
+git tag -a "tools/$version" "$candidate" -m "Asynq tools $version"
+
+git push --atomic origin \
+  "refs/tags/$version" \
+  "refs/tags/x/$version" \
+  "refs/tags/tools/$version"
+```
+
+The `tools/` tag starts the release workflow. GitHub generates the release
+notes, reruns the full standalone, Cluster, and Asynqmon gates, builds six CLI
+archives, creates `SHA256SUMS`, records provenance, and publishes the release.
+Stable versions become normal latest releases; beta versions remain explicit
+pre-releases.
+
+Once a tag reaches GitHub, treat it as immutable. Never delete, move,
+force-push, or reuse it. If a published tag is defective, fix `main` and publish
+the next unused patch version.
+
+After publication, verify the assets and public modules:
+
+```sh
+verify_dir=$(mktemp -d)
+gh release download "$version" \
+  --repo pars-aria-labs/asynq \
+  --dir "$verify_dir"
+(cd "$verify_dir" && sha256sum --check SHA256SUMS)
+
+for archive in "$verify_dir"/*.tar.gz "$verify_dir"/*.zip; do
+  gh attestation verify "$archive" --repo pars-aria-labs/asynq
+done
+
+consumer_dir=$(mktemp -d)
+export GOMODCACHE="$consumer_dir/mod"
+export GOBIN="$consumer_dir/bin"
+export GOWORK=off
+export GOPROXY=https://proxy.golang.org,direct
+export GOSUMDB=sum.golang.org
+mkdir -p "$GOMODCACHE" "$GOBIN"
+
+go list -m "github.com/pars-aria-labs/asynq@$version"
+go list -m "github.com/pars-aria-labs/asynq/x@$version"
+go list -m "github.com/pars-aria-labs/asynq/tools@$version"
+go install "github.com/pars-aria-labs/asynq/tools/asynq@$version"
+test "$("$GOBIN/asynq" version)" = "asynq version ${version#v}"
+```
+
+Once the public module proxy can see all three tags, run
+`GOWORK=off go mod tidy` in the root, `x`, and `tools` modules. Commit any
+newly recorded same-repository checksums as an ordinary follow-up change on
+`main`; do not move the release tags to that commit.
+
+Do not publish `v2.0.0` with the current module declarations. Go requires a
+`/v2` suffix for the root module, `x`, `tools`, every import, and affected
+consumer before any v2 tag is created.
 
 ## Contributing
 
-Issues and pull requests are welcome. Review the
-[contribution guide](CONTRIBUTING.md) and search the
-[current issue tracker](https://github.com/pars-aria-labs/asynq/issues) first.
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+and search the [issue tracker](https://github.com/pars-aria-labs/asynq/issues)
+before opening a new report.
 
 ## License and attribution
 
-Asynq is available under the [MIT License](LICENSE). The original work is
-copyright 2019-present Ken Hibino and
-[project contributors](https://github.com/pars-aria-labs/asynq/graphs/contributors).
-Original notices and history are preserved. The logo was created by
+Asynq is available under the [MIT License](LICENSE). Original notices and Git
+history are preserved. The project includes work by its original authors and
+all later contributors. The logo was created by
 [Vic Shóstak](https://github.com/koddr) and released under
 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).

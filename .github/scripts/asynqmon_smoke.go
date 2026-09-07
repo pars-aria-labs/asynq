@@ -1,6 +1,6 @@
 //go:build ignore
 
-// Run explicitly with the sibling workspace; see dev/README.md.
+// Run explicitly with the sibling Asynqmon checkout; see the root README.
 package main
 
 import (

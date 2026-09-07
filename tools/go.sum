@@ -169,10 +169,10 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
-github.com/pars-aria-labs/asynq v1.0.0 h1:I/MjuCcRmnCYbG4l6uNZmfdc5kj9EtSXkYELcMDuEBE=
-github.com/pars-aria-labs/asynq v1.0.0/go.mod h1:1Qo0b1FQ+T8TqaP5w1PmBZBbXv8v85yBvBrmWWmiNUc=
-github.com/pars-aria-labs/asynq/x v1.0.0 h1:QgIGCoTRcrYQliiSEKhB4A8YT+EB56LD/aC4Rf/Xp0I=
-github.com/pars-aria-labs/asynq/x v1.0.0/go.mod h1:bkE5z0FDktMjtG7l+1k9eJA/juXD6ezU0xtTFVJ4dbY=
+github.com/pars-aria-labs/asynq v1.0.1 h1:FXbwRiDiJ22l9xJh+VVkRHJWo6V4auv8efTRLCCPqXA=
+github.com/pars-aria-labs/asynq v1.0.1/go.mod h1:1Qo0b1FQ+T8TqaP5w1PmBZBbXv8v85yBvBrmWWmiNUc=
+github.com/pars-aria-labs/asynq/x v1.0.1 h1:gu8Sd392FPChL+6FN13G/1obf3IF3N8Iy0aDryXOjzc=
+github.com/pars-aria-labs/asynq/x v1.0.1/go.mod h1:7dPhpVrM9y5LlAlxT7WMtlIEgYatWlcBj+AGm+JR2dw=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=

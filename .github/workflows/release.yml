@@ -96,9 +96,12 @@ jobs:
             exit 1
           fi
 
+          # README records the historical copy source. Operational files must
+          # use only the canonical repository identity.
           legacy_refs="$(
             git grep -nE \
               'github\.com/[^/]+/asynq([^[:alnum:]_.-]|$)' -- . \
+              | grep -vE '^README\.md:' \
               | grep -vE \
                 'github\.com/pars-aria-labs/asynq([^[:alnum:]_.-]|$)' \
               || true
@@ -282,7 +285,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout release notes
+      - name: Checkout tagged source
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -323,11 +326,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          notes_file="docs/release-notes-${RELEASE_TAG}.md"
-          if [ ! -f "$notes_file" ]; then
-            echo "Missing release notes: $notes_file" >&2
-            exit 1
-          fi
+
+          notes_file="$(mktemp)"
+          gh api --method POST \
+            "repos/${GH_REPO}/releases/generate-notes" \
+            -f tag_name="$RELEASE_TAG" \
+            --jq .body > "$notes_file"
 
           case "$RELEASE_CHANNEL" in
             beta)

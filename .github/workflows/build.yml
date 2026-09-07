@@ -30,8 +30,6 @@ jobs:
     name: test (${{ matrix.redis-mode }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      GOWORK: ${{ github.workspace }}/dev/modules.work
     strategy:
       fail-fast: false
       matrix:
@@ -59,6 +57,35 @@ jobs:
             go.sum
             x/go.sum
             tools/go.sum
+
+      - name: Create local module workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace_dir="${RUNNER_TEMP}/asynq-modules"
+          mkdir -p "$workspace_dir"
+          cd "$workspace_dir"
+          GOWORK=off go work init \
+            "$GITHUB_WORKSPACE" \
+            "$GITHUB_WORKSPACE/x" \
+            "$GITHUB_WORKSPACE/tools"
+
+          root_version="$(awk \
+            '$1 == "github.com/pars-aria-labs/asynq" { print $2 }' \
+            "$GITHUB_WORKSPACE/x/go.mod")"
+          tools_root_version="$(awk \
+            '$1 == "github.com/pars-aria-labs/asynq" { print $2 }' \
+            "$GITHUB_WORKSPACE/tools/go.mod")"
+          x_version="$(awk \
+            '$1 == "github.com/pars-aria-labs/asynq/x" { print $2 }' \
+            "$GITHUB_WORKSPACE/tools/go.mod")"
+          test -n "$root_version"
+          test "$tools_root_version" = "$root_version"
+          test -n "$x_version"
+
+          GOWORK="$workspace_dir/go.work" go work edit \
+            "-replace=github.com/pars-aria-labs/asynq@${root_version}=$GITHUB_WORKSPACE" \
+            "-replace=github.com/pars-aria-labs/asynq/x@${x_version}=$GITHUB_WORKSPACE/x"
 
       - name: Start Redis Cluster
         if: matrix.redis-mode == 'cluster'
@@ -118,6 +145,8 @@ jobs:
 
       - name: Test standalone Redis
         if: matrix.redis-mode == 'standalone'
+        env:
+          GOWORK: ${{ runner.temp }}/asynq-modules/go.work
         shell: bash
         run: |
           set -euo pipefail
@@ -131,10 +160,13 @@ jobs:
           ASYNQ_TEST_REDIS_ADDR: 127.0.0.1:6379
           ASYNQ_SOAK_DURATION: 5s
           ASYNQ_SOAK_INITIAL_TASKS: 500
+          GOWORK: ${{ runner.temp }}/asynq-modules/go.work
         run: make soak-inspector-batch
 
       - name: Test Redis Cluster
         if: matrix.redis-mode == 'cluster'
+        env:
+          GOWORK: ${{ runner.temp }}/asynq-modules/go.work
         shell: bash
         run: |
           set -euo pipefail
@@ -217,10 +249,35 @@ jobs:
             asynq/x/go.sum
             asynqmon/go.sum
 
+      - name: Create local Asynqmon workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace_dir="${RUNNER_TEMP}/asynqmon-workspace"
+          mkdir -p "$workspace_dir"
+          cd "$workspace_dir"
+          GOWORK=off go work init \
+            "$GITHUB_WORKSPACE/asynq" \
+            "$GITHUB_WORKSPACE/asynq/x" \
+            "$GITHUB_WORKSPACE/asynqmon"
+
+          root_version="$(awk \
+            '$1 == "github.com/pars-aria-labs/asynq" { print $2 }' \
+            "$GITHUB_WORKSPACE/asynq/x/go.mod")"
+          x_version="$(awk \
+            '$1 == "github.com/pars-aria-labs/asynq/x" { print $2 }' \
+            "$GITHUB_WORKSPACE/asynqmon/go.mod")"
+          test -n "$root_version"
+          test -n "$x_version"
+
+          GOWORK="$workspace_dir/go.work" go work edit \
+            "-replace=github.com/pars-aria-labs/asynq@${root_version}=$GITHUB_WORKSPACE/asynq" \
+            "-replace=github.com/pars-aria-labs/asynq/x@${x_version}=$GITHUB_WORKSPACE/asynq/x"
+
       - name: Test asynqmon with this asynq checkout
         working-directory: asynqmon
         env:
-          GOWORK: ${{ github.workspace }}/asynq/dev/asynqmon.work
+          GOWORK: ${{ runner.temp }}/asynqmon-workspace/go.work
         run: go test -race ./...
 
       - name: Set up Node
