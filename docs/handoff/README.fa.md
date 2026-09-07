@@ -1,12 +1,12 @@
 # Handoff پروژه asynq و asynqmon
 
-آخرین به‌روزرسانی: 2026-09-06
+آخرین به‌روزرسانی: 2026-09-07
 ریپوی اصلی فعلی: `/root/src`
 ریپوی UI/sibling فعلی: `/root/asynqmon`
 
-این handoff وضعیت patch پایدار `v0.27.1` و آماده‌سازی preview با تگ `v1.0.0-beta.1` را ثبت می‌کند. کارهای اجرایی P0 تا P5، اصلاح‌های نهایی ابزارها و کنترل‌های انتشار انجام شده‌اند. ماژول‌های root، `x` و `tools` با tagهای هم‌نسخه منتشر می‌شوند و tagهای قبلی نیز بدون جابه‌جایی حفظ شده‌اند. تست کامل، vet، race، soak هم‌زمان، تست و build رابط کاربری، smoke یکپارچه و اجرای واقعی Redis Cluster سه‌گرهی برای خط پایدار پاس شده‌اند؛ workflow انتشار همین کنترل‌ها را روی commit بتا دوباره اجرا می‌کند.
+این handoff انتشار پایدار `v1.0.0` را ثبت می‌کند؛ `v0.27.1` آخرین خط پیش از v1 و `v1.0.0-beta.1` سابقهٔ preview هستند. کارهای اجرایی P0 تا P6، اصلاح‌های ابزارها و کنترل‌های انتشار انجام شده‌اند. ماژول‌های root، `x` و `tools` از یک commit و با tagهای هم‌نسخه منتشر می‌شوند و tagهای قبلی نیز بدون جابه‌جایی حفظ شده‌اند. تست کامل، vet، race، soak هم‌زمان، تست و build رابط کاربری، smoke یکپارچه و اجرای واقعی Redis Cluster سه‌گرهی پاس شده‌اند.
 
-انتشار beta با workflow اختصاصی GitHub Actions انجام می‌شود: ابتدا تطابق tag و نسخه‌ی embedded کنترل می‌شود، سپس تست‌های race، vet و soak اجرا می‌شوند؛ در پایان CLI برای شش ترکیب سیستم‌عامل/معماری build و همراه `SHA256SUMS` به‌صورت GitHub Pre-release منتشر می‌شود.
+workflow عمومی GitHub Actions هر دو کانال stable و beta در شاخهٔ v1 را پوشش می‌دهد: ابتدا تطابق سه tag، نسخهٔ embedded، graph ماژول‌ها و هویت canonical را کنترل می‌کند؛ سپس race، vet، soak، Redis Cluster و Asynqmon را اجرا می‌کند. در پایان CLI برای شش ترکیب سیستم‌عامل/معماری build می‌شود و همراه `SHA256SUMS` و provenance attestation انتشار می‌یابد. نسخهٔ stable یک GitHub Release عادی و latest است؛ beta به‌صورت pre-release و non-latest منتشر می‌شود.
 
 هویت ماژول Asynqmon نیز از نسخهٔ `v0.8.0` برابر `github.com/pars-aria-labs/asynqmon` است؛ بنابراین کد برنامه، ابزار smoke و نمونه‌های README همگی از namespace سازمان استفاده می‌کنند.
 
@@ -66,6 +66,8 @@
 - `docs/migrating-to-pars-aria-labs.md`
 - `docs/release-notes-v0.27.0.md`
 - `docs/release-notes-v0.27.1.md`
+- `docs/release-notes-v1.0.0.md`
+- `docs/releasing.md`
 - `docs/inspector-soak.md`
 
 تغییرهای workflow در `.github/workflows/build.yml` و `.github/workflows/benchstat.yml` نیز بخشی از تحویل هستند.
@@ -94,13 +96,18 @@
   asynqmon/  # sibling UI/server
 ```
 
-workspace، ماژول اصلی asynq، ماژول `x` و sibling را کنار هم قرار می‌دهد. importهای Go در asynqmon اکنون مستقیماً از مسیر canonical یعنی `github.com/pars-aria-labs/asynq` و `github.com/pars-aria-labs/asynq/x` استفاده می‌کنند. graph انتشار root، `x` و `tools` روی `v1.0.0-beta.1` هم‌نسخه است؛ Asynqmon `v0.8.0` برای خط پایدار خود dependencyهای `v0.27.1` را نگه می‌دارد. replaceهای version-specific فقط برای توسعه و آزمون هم‌زمان checkoutهای محلی هستند و در مصرف نسخهٔ منتشرشده نقشی ندارند.
+workspace، ماژول اصلی asynq، ماژول `x` و sibling را کنار هم قرار می‌دهد. importهای Go در asynqmon اکنون مستقیماً از مسیر canonical یعنی `github.com/pars-aria-labs/asynq` و `github.com/pars-aria-labs/asynq/x` استفاده می‌کنند. graph انتشار root، `x` و `tools` روی `v1.0.0` هم‌نسخه است؛ Asynqmon `v0.8.0` برای graph منتشرشدهٔ خود dependencyهای `v0.27.1` را نگه می‌دارد، اما workspace سازگاری آن را با سورس محلی v1 می‌سنجد. replaceهای version-specific فقط برای توسعه و آزمون هم‌زمان checkoutهای محلی هستند و در مصرف نسخهٔ منتشرشده نقشی ندارند.
 
-tagهای canonical خط `v0.27.1` در remote منتشر شده‌اند و graph پایدار با `GOWORK=off` آزموده شده است. برای beta، سه tag هم-SHA به‌صورت atomic منتشر می‌شوند؛ سپس workflow و پیش از ساخت GitHub Pre-release، graph مستقل root، `x` و `tools` را بدون workspace محلی تست و vet می‌کند.
+سه tag نهایی `v1.0.0`، `x/v1.0.0` و `tools/v1.0.0` به‌صورت atomic و روی یک commit منتشر می‌شوند. workflow پیش از ساخت [GitHub Release v1.0.0](https://github.com/pars-aria-labs/asynq/releases/tag/v1.0.0)، graph مستقل root، `x` و `tools` را بدون workspace محلی تست و vet می‌کند.
 
 اگر parent path تغییر کرد، مسیر `../../asynqmon` در `dev/asynqmon.work` نیز باید متناسب با آن به‌روزرسانی شود.
 
 ## اعتبارسنجی ثبت‌شده
+
+- هر ۱۴ PR باز Dependabot در graph یکپارچه ادغام شدند؛ صفحهٔ PRها پس از push هیچ PR بازی نشان نداد.
+- graph ترکیبی dependencyها با Go 1.25 برای هر سه ماژول compile و vet شد؛ race مستقل root، `internal/rdb`، `x/rate`، `x/metrics` و tools پاس شد و CLI برای شش target انتشار build شد.
+- تست تقدم تنظیمات CLI پس از ارتقای Viper پاس شد: flag بر environment و environment بر فایل config تقدم دارد.
+- اجرای `build #27` روی commit ادغام dependencyها در [GitHub Actions](https://github.com/pars-aria-labs/asynq/actions/runs/34069120094) با هر دو job standalone/cluster و Asynqmon موفق شد.
 
 - `go test ./...`: پاس؛ package اصلی در اجرای نهایی ایزوله حدود `200.2s` زمان برد.
 - `go vet ./...`: پاس؛ vet ماژول‌های `x` و `tools` نیز پاس است.
@@ -113,7 +120,7 @@ tagهای canonical خط `v0.27.1` در remote منتشر شده‌اند و gra
 - integration واقعی sibling با 523 task: پاسخ `scheduled=500` و `remaining=23` و state مقصد صحیح.
 - UI: دو suite و هشت تست پاس؛ production build پاس.
 - `actionlint` و `git diff --check`: پاس.
-- soak نهایی patch release: 1999 task enqueue و دقیقاً پردازش شد؛ 3211 batch call، 119 stats read و 16 بار `SCRIPT FLUSH` ثبت شد.
+- soak خط `v0.27.1` در اجرای ثبت‌شدهٔ همان patch: 1999 task enqueue و دقیقاً پردازش شد؛ 3211 batch call، 119 stats read و 16 بار `SCRIPT FLUSH` ثبت شد.
 
 build رابط کاربری فقط warning قدیمی source-map مربوط به Redux Toolkit دارد و artifact قابل deploy تولید می‌شود.
 

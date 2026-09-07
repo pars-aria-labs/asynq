@@ -1,8 +1,9 @@
 # Testing with the sibling asynqmon checkout
 
 The Inspector optimization and bounded batch-operation phases are complete.
-The current preview is `v1.0.0-beta.1`. See `docs/handoff/README.fa.md` for the
-release status and full validation record.
+The current stable release line starts at `v1.0.0`. See
+`docs/handoff/README.fa.md` for the recorded release status and validation
+history.
 
 Keep `asynq` and `asynqmon` in the same parent directory. With Go 1.25 or
 newer on PATH, run this from the asynq repository:
@@ -13,10 +14,11 @@ make test-asynqmon
 
 The explicit `dev/asynqmon.work` workspace selects the local asynq module and
 its `x` module (including the Prometheus exporter). Asynqmon imports and pins
-the canonical `github.com/pars-aria-labs/asynq` modules at `v0.27.1`; the
-version-specific workspace replacements select the beta core and local `x`
-source for simultaneous development without changing either module file. A
-`GOWORK=off` build verifies the released dependency graph
+the canonical `github.com/pars-aria-labs/asynq` modules at `v0.27.1`, while the
+workspace `use` directives select this local v1 checkout and local `x` source
+for simultaneous development without changing the Asynqmon module file. Keep
+any version-specific workspace replacements aligned with the release candidate.
+A `GOWORK=off` build separately verifies Asynqmon's published dependency graph
 without local overrides.
 
 To run the monitor with these local changes:
@@ -81,7 +83,12 @@ Redis service address provided by CI. It runs `SCRIPT FLUSH`, which affects all
 databases on that server. See the [soak-test safety guide](../docs/inspector-soak.md)
 before running it.
 
-## Validation (2026-09-06)
+## Recorded validation baseline (2026-09-06)
+
+The following results are a historical development baseline recorded before
+the final v1 publication. Consult the current CI and handoff record for the
+release gate; this section does not claim a later run that has not been
+recorded here.
 
 - `go test ./...` and `go vet ./...`: passed against the disposable standalone
   Redis endpoint.
@@ -89,8 +96,8 @@ before running it.
 - Race-enabled `internal/rdb` tests: passed with CGO enabled.
 - Sibling asynqmon Go and UI tests, production UI build, Redis integration test,
   and HTTP smoke test: passed.
-- Redis Cluster was not available locally; the CI workflow now includes a
-  three-node cluster job.
+- At the time this baseline was recorded, Redis Cluster was not available in
+  that local run; the CI workflow includes a separate three-node cluster job.
 
 Three local benchmark runs with 100 server records reduced the median
 `ListServers` duration from 10.94 ms to 0.555 ms (about 20x). Allocations fell

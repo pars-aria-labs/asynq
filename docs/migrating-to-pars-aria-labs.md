@@ -24,12 +24,15 @@ Use the canonical module import in Go files:
 import "github.com/pars-aria-labs/asynq"
 ```
 
-To evaluate the v1 beta, pin the canonical preview explicitly:
+Do not add `/v1` to this import. Go uses the original module path for major
+versions zero and one; semantic import versioning requires a `/vN` suffix only
+when a module reaches `v2` or later. The exported Go package identifier also
+remains `asynq`.
+
+Pin the stable root module explicitly:
 
 ```sh
-go get github.com/pars-aria-labs/asynq@v1.0.0-beta.1
-go mod tidy
-go test ./...
+go get github.com/pars-aria-labs/asynq@v1.0.0
 ```
 
 Optional packages use the same canonical module namespace:
@@ -41,12 +44,22 @@ import "github.com/pars-aria-labs/asynq/x/metrics"
 Then pin the matching optional-module release before tidying:
 
 ```sh
-go get github.com/pars-aria-labs/asynq/x@v1.0.0-beta.1
+go get github.com/pars-aria-labs/asynq/x@v1.0.0
 ```
 
-Keep `v0.27.1` in production when you are not intentionally evaluating the
-beta. Go prefers a stable release over a pre-release for an unqualified update;
-pin the beta explicitly when you want to test it.
+If your application does not import a package below `asynq/x`, omit the second
+command. After selecting all modules, normalize the dependency graph and run
+your complete test suite:
+
+```sh
+go mod tidy
+go test ./...
+```
+
+The same commands upgrade applications from either `v0.27.1` or
+`v1.0.0-beta.1`. Check the resulting `go.mod` to make sure the root and optional
+modules both resolve to `v1.0.0`; mixing release lines makes an upgrade harder
+to reproduce and support.
 
 Do not use a permanent `replace` directive to disguise the old module as the
 new one. Go's `internal` package rules and self-imports make that arrangement

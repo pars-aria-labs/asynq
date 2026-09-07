@@ -25,9 +25,11 @@ license text, Git history, and attribution are retained. All current module,
 documentation, issue, and contribution links use the canonical repository.
 
 See the [migration guide](docs/migrating-to-pars-aria-labs.md) and
-[v1.0.0-beta.1 release notes](docs/release-notes-v1.0.0-beta.1.md) for
-compatibility details. The [v0.27.1 notes](docs/release-notes-v0.27.1.md)
-describe the latest pre-v1 patch release.
+[v1.0.0 release notes](docs/release-notes-v1.0.0.md) for compatibility
+details. The [v1.0.0-beta.1 notes](docs/release-notes-v1.0.0-beta.1.md)
+preserve the preview history, while the
+[v0.27.1 notes](docs/release-notes-v0.27.1.md) describe the final pre-v1
+patch release.
 
 ## What this fork adds
 
@@ -84,18 +86,18 @@ bounded Inspector operations, migration, observability, and soak testing.
 
 ## Install or migrate
 
-The module targets Go 1.25. The current preview is `v1.0.0-beta.1`; opt in by
-pinning the beta explicitly:
+The module requires Go 1.25. The current stable release is `v1.0.0`. Pin every
+Asynq module used by your application to that same version:
 
 ```sh
-go get github.com/pars-aria-labs/asynq@v1.0.0-beta.1
-go get github.com/pars-aria-labs/asynq/x@v1.0.0-beta.1
+go get github.com/pars-aria-labs/asynq@v1.0.0
+go get github.com/pars-aria-labs/asynq/x@v1.0.0
 ```
 
 The second command installs the optional `x` module used by packages such as
 `x/metrics`. If your application does not import an `x` package, you can omit
-that command. Production users who are not evaluating the beta can remain on
-the `v0.27.1` release line.
+that command. If you are upgrading from `v0.27.1` or `v1.0.0-beta.1`, review
+the migration guide and validate the upgrade against staging data first.
 
 The canonical import path is shown below. The exported package name remains
 `asynq`:
@@ -103,6 +105,10 @@ The canonical import path is shown below. The exported package name remains
 ```go
 import "github.com/pars-aria-labs/asynq"
 ```
+
+There is deliberately no `/v1` suffix in that path. Under Go's semantic import
+versioning rules, the original module path is used for major versions zero and
+one; a major-version suffix becomes necessary only for `v2` and later.
 
 After updating module references, run `go mod tidy` and your test suite. No
 Redis data rewrite is required solely because of the Go module path; keep the
@@ -337,7 +343,7 @@ for workspace and smoke-test instructions.
 Install the CLI from the canonical module:
 
 ```sh
-go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.0-beta.1
+go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.0
 ```
 
 Run `asynq dash` for the terminal dashboard. See the
@@ -346,15 +352,16 @@ Pinning the version makes local, CI, and production administration environments
 install the same reviewed CLI build.
 
 Maintainers can reproduce the tag and GitHub Actions publication sequence by
-following the [beta release guide](docs/releasing-beta.md).
+following the [release guide](docs/releasing.md).
 
 ## Stability and compatibility
 
-`v1.0.0-beta.1` is a preview of the v1 contract, so public API details may
-still change before final `v1.0.0`. The current CI target is Go 1.25 with Redis
-7.4. Standalone and Redis Cluster paths are tested separately; because Asynq
-relies on Lua scripts, validate your specific topology and upgrade against
-staging data before production rollout.
+`v1.0.0` establishes the stable v1 API line. Releases follow Semantic
+Versioning: backward-compatible features and fixes may be added within v1, but
+an incompatible public API change requires a new major version. The current CI
+target is Go 1.25 with Redis 7.4. Standalone and Redis Cluster paths are tested
+separately; because Asynq relies on Lua scripts, validate your specific topology
+and upgrade against staging data before production rollout.
 
 Redis keys and serialized task messages remain compatible with the fork base
 when endpoint, database, and prefix are unchanged. No automatic data migration

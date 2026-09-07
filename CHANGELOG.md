@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-07
+
+### Added
+
+- Publish the first stable v1 release of the canonical
+  `github.com/pars-aria-labs/asynq` root, `x`, and `tools` modules from one
+  reviewed commit.
+- Generalize the tag-driven release workflow for both stable v1 releases and
+  beta previews, with same-commit module-tag validation, six CLI archives,
+  SHA-256 checksums, and build-provenance attestations.
+
+### Changed
+
+- Declare the bounded Inspector, Redis namespace isolation, Redis Cluster
+  behavior, telemetry, CLI, exporter, and Asynqmon integration stable under
+  the v1 compatibility contract.
+- Upgrade Redis, Protobuf, Prometheus, Viper, terminal/Unicode, and supporting
+  dependencies, together with the GitHub artifact, Codecov, and attestation
+  actions.
+
+### Compatibility
+
+- Keep the Go import path at `github.com/pars-aria-labs/asynq`; Go modules do
+  not use a `/v1` suffix.
+- Keep the Redis key layout and serialized task format compatible with the
+  `v0.27.x` and `v1.0.0-beta.1` lines. Upgrading solely to `v1.0.0` does not
+  require an automatic Redis data migration.
+- Apply Semantic Versioning to the v1 public API. Backward-incompatible API
+  changes require a new major-version module path.
+
+See the [v1.0.0 release notes](docs/release-notes-v1.0.0.md).
+
 ## [1.0.0-beta.1] - 2026-09-06
 
 ### Added

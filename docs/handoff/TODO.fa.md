@@ -1,8 +1,8 @@
 # وضعیت کارهای handoff
 
-آخرین به‌روزرسانی: 2026-09-06
+آخرین به‌روزرسانی: 2026-09-07
 
-کارهای اجرایی P0 تا P5 این handoff تکمیل شده‌اند. این فایل نتیجه و محدودیت‌های اعتبارسنجی را ثبت می‌کند تا فهرست قدیمیِ کارها با وضعیت فعلی اشتباه نشود.
+کارهای اجرایی P0 تا P6 این handoff تکمیل شده‌اند. این فایل نتیجه و محدودیت‌های اعتبارسنجی را ثبت می‌کند تا فهرست قدیمیِ کارها با وضعیت فعلی اشتباه نشود.
 
 ## P0: پایدارسازی فاز دوم — انجام شد
 
@@ -64,9 +64,9 @@ CI=true npm test --prefix ui -- --watchAll=false
 npm run build --prefix ui
 ```
 
-importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` مهاجرت کرده‌اند. graph انتشار root، `x` و `tools` برای preview روی `v1.0.0-beta.1` هم‌نسخه می‌شود؛ Asynqmon `v0.8.0` در graph پایدار خود `v0.27.1` را نگه می‌دارد و CI سازگاری آن را با سورس beta از طریق workspace می‌سنجد. build، test و vet مستقل ماژول‌های beta با `GOWORK=off` و بدون replace محلی نیز جزو gate انتشار است.
+importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` مهاجرت کرده‌اند. graph انتشار root، `x` و `tools` روی نسخهٔ پایدار `v1.0.0` هم‌نسخه است؛ Asynqmon `v0.8.0` در graph منتشرشدهٔ خود `v0.27.1` را نگه می‌دارد و CI سازگاری آن را با سورس v1 از طریق workspace می‌سنجد. build، test و vet مستقل هر سه ماژول با `GOWORK=off` و بدون replace محلی نیز جزو gate انتشار است.
 
-برای بازتولید failure اولیهٔ CI، Redis محلی نصب و یک cluster موقت سه‌گرهی روی portهای ایزوله ساخته شد. فرمان دقیق workflow با Go 1.25 و race پس از اصلاح ownership منابع تست و حذف فرض تک‌node در assertionهای `KEYS` کاملاً پاس شد؛ cluster موقت نیز پس از آزمون خاموش شد. همان مسیر در workflow عمومی GitHub تکرار می‌شود.
+برای بازتولید failure اولیهٔ CI، Redis محلی نصب و یک cluster موقت سه‌گرهی روی portهای ایزوله ساخته شد. فرمان دقیق workflow با Go 1.25 و race پس از اصلاح ownership منابع تست و حذف فرض تک‌node در assertionهای `KEYS` کاملاً پاس شد؛ cluster موقت نیز پس از آزمون خاموش شد. همین مسیر در workflow عمومی GitHub و اجرای موفق [build #27](https://github.com/pars-aria-labs/asynq/actions/runs/34069120094) تکرار شد.
 
 ## P4: APIهای عملیاتی و observability — انجام شد
 
@@ -84,6 +84,15 @@ importهای sibling به مسیر canonical `github.com/pars-aria-labs/asynq` �
 - README سورس canonical `pars-aria-labs/asynq` و مبنای دقیق تاریخچه‌ی واردشده در commit `2f4fd0a` را ثبت می‌کند و تغییرهای fork را همراه نمونه‌های آموزشی توضیح می‌دهد.
 - release note، راهنمای migration و compile-time contract test برای API عمومی اضافه شد.
 - soak test اختیاری producer، mutation، stats و `SCRIPT FLUSH` هم‌زمان را با namespace یکتا و cleanup محدود به همان namespace اجرا می‌کند.
-- اجرای واقعی soak نهایی پاس شد: 2499 task enqueue و دقیقاً 2499 task پردازش شد؛ 3106 batch call، 120 stats read و 16 script flush ثبت شد.
+- اجرای soak اولیهٔ فاز P5 پاس شد: 2499 task enqueue و دقیقاً 2499 task پردازش شد؛ 3106 batch call، 120 stats read و 16 script flush ثبت شد.
 
 قرارداد و آموزش کامل APIها در `docs/batch-inspector.md`، مهاجرت مسیر ماژول در `docs/migrating-to-pars-aria-labs.md` و اجرای soak در `docs/inspector-soak.md` ثبت شده است.
+
+## P6: انتشار پایدار v1.0.0 — انجام شد
+
+- هر ۱۴ PR باز Dependabot با حفظ ancestry روی `main` ادغام شدند؛ تعارض graph ماژول‌های `x` و `tools` به‌صورت یکپارچه حل و checksumها دوباره محاسبه شدند.
+- dependencyهای Redis، Protobuf، Prometheus، Viper، tcell، runewidth، pflag و color همراه actionهای artifact، Codecov و attestation ارتقا یافتند.
+- نسخهٔ embedded، requirementهای root و `x` در ماژول‌های تو‌در‌تو، workspaceهای توسعه، READMEها، changelog و release note روی `v1.0.0` هماهنگ شدند.
+- workflow انتشار برای stable و beta عمومی شد و فقط tagهای v1 معتبر را می‌پذیرد. سه tag root، `x` و `tools` باید هم-SHA و در یک push اتمیک باشند.
+- اجرای ادغام dependencyها در GitHub Actions موفق بود و gate انتشار نهایی دوباره standalone، Redis Cluster، race، soak، Asynqmon، module graph، شش archive و provenance را کنترل می‌کند.
+- دستورالعمل patch، minor و beta بعدی در [راهنمای انتشار](../releasing.md) و جزئیات نصب و integrity در [release note نسخهٔ v1.0.0](../release-notes-v1.0.0.md) ثبت شده است.

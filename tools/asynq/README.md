@@ -8,15 +8,16 @@ producers and workers.
 
 ## Install
 
-The CLI is a separate Go module. To evaluate the v1 beta, pin it to the same
-preview used by your services:
+The CLI is a separate Go module. Install the stable CLI at the same version used
+by your services:
 
 ```sh
-go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.0-beta.1
+go install github.com/pars-aria-labs/asynq/tools/asynq@v1.0.0
 ```
 
-Use `v0.27.1` instead when administering services that have not moved to the
-beta release line.
+When administering a deployment pinned to an older Asynq release, install the
+corresponding CLI tag instead of mixing release lines. This keeps command
+behavior and Redis data expectations aligned with the deployed services.
 
 Go installs the executable in `GOBIN`, or in `$GOPATH/bin` when `GOBIN` is not
 set. Confirm the installed version with:

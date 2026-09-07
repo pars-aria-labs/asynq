@@ -1,18 +1,18 @@
-name: Release beta
+name: Release
 
-# The tools tag is the sole trigger. Root, x, and tools tags are sent in one
-# atomic push, so every module ref is visible before this workflow validates
-# the dependency graph or publishes artifacts.
+# The tools tag is the sole trigger for beta and stable v1 releases. Root, x,
+# and tools tags are sent in one atomic push, so every module ref is visible
+# before this workflow validates the dependency graph or publishes artifacts.
 on:
   push:
     tags:
-      - "tools/v*.*.*-beta.*"
+      - "tools/v1.*.*"
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-beta-${{ github.ref_name }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -27,6 +27,7 @@ jobs:
       release_tag: ${{ steps.release.outputs.release_tag }}
       x_tag: ${{ steps.release.outputs.x_tag }}
       tools_tag: ${{ steps.release.outputs.tools_tag }}
+      release_channel: ${{ steps.release.outputs.release_channel }}
     steps:
       - name: Checkout tagged source
         uses: actions/checkout@v7
@@ -43,8 +44,14 @@ jobs:
           release_tag="${tools_tag#tools/}"
           x_tag="x/${release_tag}"
 
-          if ! grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.[1-9][0-9]*$' <<<"$release_tag"; then
-            echo "Expected tools/vX.Y.Z-beta.N; got $tools_tag" >&2
+          stable_re='^v1\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          beta_re='^v1\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.[1-9][0-9]*$'
+          if [[ "$release_tag" =~ $stable_re ]]; then
+            release_channel="stable"
+          elif [[ "$release_tag" =~ $beta_re ]]; then
+            release_channel="beta"
+          else
+            echo "Expected tools/v1.X.Y or tools/v1.X.Y-beta.N; got $tools_tag" >&2
             exit 1
           fi
 
@@ -66,32 +73,46 @@ jobs:
           if [ "$root_commit" != "$x_commit" ] || \
              [ "$root_commit" != "$tools_commit" ] || \
              [ "$root_commit" != "$head_commit" ]; then
-            echo "Root, x, and tools beta tags must point at this same commit" >&2
+            echo "Root, x, and tools release tags must point at this same commit" >&2
             exit 1
           fi
 
           if ! awk -v version="$release_tag" \
             '$1 == "github.com/pars-aria-labs/asynq" && $2 == version { found=1 } END { exit !found }' \
             x/go.mod; then
-            echo "x/go.mod does not require the matching root beta" >&2
+            echo "x/go.mod does not require the matching root release" >&2
             exit 1
           fi
           if ! awk -v version="$release_tag" \
             '$1 == "github.com/pars-aria-labs/asynq" && $2 == version { found=1 } END { exit !found }' \
             tools/go.mod; then
-            echo "tools/go.mod does not require the matching root beta" >&2
+            echo "tools/go.mod does not require the matching root release" >&2
             exit 1
           fi
           if ! awk -v version="$release_tag" \
             '$1 == "github.com/pars-aria-labs/asynq/x" && $2 == version { found=1 } END { exit !found }' \
             tools/go.mod; then
-            echo "tools/go.mod does not require the matching x beta" >&2
+            echo "tools/go.mod does not require the matching x release" >&2
+            exit 1
+          fi
+
+          legacy_refs="$(
+            git grep -nE \
+              'github\.com/[^/]+/asynq([^[:alnum:]_.-]|$)' -- . \
+              | grep -vE \
+                'github\.com/pars-aria-labs/asynq([^[:alnum:]_.-]|$)' \
+              || true
+          )"
+          if [ -n "$legacy_refs" ]; then
+            printf '%s\n' "$legacy_refs" >&2
+            echo "Legacy Asynq repository identity found in the release tree" >&2
             exit 1
           fi
 
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "x_tag=$x_tag" >> "$GITHUB_OUTPUT"
           echo "tools_tag=$tools_tag" >> "$GITHUB_OUTPUT"
+          echo "release_channel=$release_channel" >> "$GITHUB_OUTPUT"
 
   full-quality:
     name: Full standalone, cluster, and Asynqmon checks
@@ -254,7 +275,7 @@ jobs:
           retention-days: 14
 
   publish:
-    name: Publish GitHub pre-release
+    name: Publish GitHub release
     needs: [prepare, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -298,6 +319,7 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
           X_TAG: ${{ needs.prepare.outputs.x_tag }}
           TOOLS_TAG: ${{ needs.prepare.outputs.tools_tag }}
+          RELEASE_CHANNEL: ${{ needs.prepare.outputs.release_channel }}
         shell: bash
         run: |
           set -euo pipefail
@@ -306,6 +328,25 @@ jobs:
             echo "Missing release notes: $notes_file" >&2
             exit 1
           fi
+
+          case "$RELEASE_CHANNEL" in
+            beta)
+              release_title="Asynq ${RELEASE_TAG} (Beta)"
+              create_channel_args=(--prerelease --latest=false)
+              draft_channel_args=(--prerelease --latest=false)
+              publish_channel_args=(--prerelease --latest=false)
+              ;;
+            stable)
+              release_title="Asynq ${RELEASE_TAG}"
+              create_channel_args=(--latest=false)
+              draft_channel_args=(--prerelease=false --latest=false)
+              publish_channel_args=(--prerelease=false --latest)
+              ;;
+            *)
+              echo "Unsupported release channel: $RELEASE_CHANNEL" >&2
+              exit 1
+              ;;
+          esac
 
           for tag in "$RELEASE_TAG" "$X_TAG" "$TOOLS_TAG"; do
             remote_commit="$({
@@ -318,28 +359,49 @@ jobs:
             fi
           done
 
-          release_state="$(
-            gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft \
-              2>/dev/null || true
-          )"
-          if [ -z "$release_state" ]; then
+          release_error_file="$(mktemp)"
+          if release_state="$(
+            gh api "repos/${GH_REPO}/releases/tags/${RELEASE_TAG}" \
+              --jq .draft 2>"$release_error_file"
+          )"; then
+            release_exists=true
+          elif grep -Fq 'HTTP 404' "$release_error_file"; then
+            release_exists=false
+          else
+            echo "Unable to inspect release $RELEASE_TAG" >&2
+            cat "$release_error_file" >&2
+            exit 1
+          fi
+
+          if [ "$release_exists" = false ]; then
             gh release create "$RELEASE_TAG" dist/* \
               --verify-tag \
-              --title "Asynq ${RELEASE_TAG} (Beta)" \
+              --title "$release_title" \
               --notes-file "$notes_file" \
               --draft \
-              --prerelease \
-              --latest=false
+              "${create_channel_args[@]}"
           elif [ "$release_state" = true ]; then
             gh release edit "$RELEASE_TAG" \
-              --title "Asynq ${RELEASE_TAG} (Beta)" \
+              --title "$release_title" \
               --notes-file "$notes_file" \
               --draft \
-              --prerelease \
-              --latest=false
-            gh release upload "$RELEASE_TAG" dist/* --clobber
-          else
+              "${draft_channel_args[@]}"
+
+            prior_assets="$(
+              gh release view "$RELEASE_TAG" --json assets \
+                --jq '.assets[].name'
+            )"
+            if [ -n "$prior_assets" ]; then
+              while IFS= read -r asset; do
+                gh release delete-asset "$RELEASE_TAG" "$asset" --yes
+              done <<<"$prior_assets"
+            fi
+            gh release upload "$RELEASE_TAG" dist/*
+          elif [ "$release_state" = false ]; then
             echo "Published release $RELEASE_TAG already exists; refusing to replace it" >&2
+            exit 1
+          else
+            echo "Unexpected draft state for $RELEASE_TAG: $release_state" >&2
             exit 1
           fi
 
@@ -357,5 +419,4 @@ jobs:
 
           gh release edit "$RELEASE_TAG" \
             --draft=false \
-            --prerelease \
-            --latest=false
+            "${publish_channel_args[@]}"
