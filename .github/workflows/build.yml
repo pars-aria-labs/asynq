@@ -280,29 +280,69 @@ jobs:
           GOWORK: ${{ runner.temp }}/asynqmon-workspace/go.work
         run: go test -race ./...
 
+      - name: Detect Asynqmon UI package manager
+        id: asynqmon_ui
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f asynqmon/ui/package-lock.json ]; then
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+            echo "lockfile=asynqmon/ui/package-lock.json" >> "$GITHUB_OUTPUT"
+          elif [ -f asynqmon/ui/yarn.lock ]; then
+            echo "manager=yarn" >> "$GITHUB_OUTPUT"
+            echo "lockfile=asynqmon/ui/yarn.lock" >> "$GITHUB_OUTPUT"
+          else
+            echo "Asynqmon UI has no supported lockfile" >&2
+            exit 1
+          fi
+
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: yarn
-          cache-dependency-path: asynqmon/ui/yarn.lock
+          cache: ${{ steps.asynqmon_ui.outputs.manager }}
+          cache-dependency-path: ${{ steps.asynqmon_ui.outputs.lockfile }}
 
       - name: Install Yarn
+        if: ${{ steps.asynqmon_ui.outputs.manager == 'yarn' }}
         run: npm install --global yarn@1.22.22
 
       - name: Install asynqmon UI dependencies
         working-directory: asynqmon/ui
-        run: yarn install --frozen-lockfile
+        env:
+          PACKAGE_MANAGER: ${{ steps.asynqmon_ui.outputs.manager }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$PACKAGE_MANAGER" in
+            npm) npm ci ;;
+            yarn) yarn install --frozen-lockfile ;;
+            *) echo "Unsupported package manager: $PACKAGE_MANAGER" >&2; exit 1 ;;
+          esac
 
       - name: Test asynqmon UI
         working-directory: asynqmon/ui
         env:
           CI: "true"
-          NODE_OPTIONS: --openssl-legacy-provider
-        run: yarn test --watchAll=false
+          PACKAGE_MANAGER: ${{ steps.asynqmon_ui.outputs.manager }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$PACKAGE_MANAGER" in
+            npm) npm test ;;
+            yarn) NODE_OPTIONS=--openssl-legacy-provider yarn test --watchAll=false ;;
+            *) echo "Unsupported package manager: $PACKAGE_MANAGER" >&2; exit 1 ;;
+          esac
 
       - name: Build asynqmon UI
         working-directory: asynqmon/ui
         env:
-          NODE_OPTIONS: --openssl-legacy-provider
-        run: yarn build
+          PACKAGE_MANAGER: ${{ steps.asynqmon_ui.outputs.manager }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$PACKAGE_MANAGER" in
+            npm) npm run build ;;
+            yarn) NODE_OPTIONS=--openssl-legacy-provider yarn build ;;
+            *) echo "Unsupported package manager: $PACKAGE_MANAGER" >&2; exit 1 ;;
+          esac
