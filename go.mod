@@ -1,6 +1,6 @@
 module github.com/pars-aria-labs/asynq
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/google/go-cmp v0.7.0
@@ -10,7 +10,7 @@ require (
 	github.com/spf13/cast v1.10.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/sys v0.47.0
-	golang.org/x/time v0.15.0
+	golang.org/x/time v0.16.0
 	google.golang.org/protobuf v1.36.12
 )
 
