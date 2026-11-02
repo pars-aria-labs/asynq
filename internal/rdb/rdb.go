@@ -129,7 +129,7 @@ func (r *RDB) runScriptWithErrorCode(ctx context.Context, op errors.Op, script *
 // Output:
 // Returns 1 if successfully enqueued
 // Returns 0 if task ID already exists
-var enqueueCmd = redis.NewScript(`
+var enqueueCmd = redis.NewScript(taskMetadataLua + `
 if redis.call("EXISTS", KEYS[1]) == 1 then
 	return 0
 end
@@ -138,6 +138,7 @@ redis.call("HSET", KEYS[1],
            "state", "pending",
            "pending_since", ARGV[3])
 redis.call("LPUSH", KEYS[2], ARGV[2])
+set_labels(KEYS[1], ARGV[2], ARGV[4])
 return 1
 `)
 
@@ -162,6 +163,7 @@ func (r *RDB) Enqueue(ctx context.Context, msg *base.TaskMessage) error {
 		encoded,
 		msg.ID,
 		r.clock.Now().UnixNano(),
+		r.labelIndexes(msg),
 	}
 	n, err := r.runScriptWithErrorCode(ctx, op, enqueueCmd, keys, argv...)
 	if err != nil {
@@ -247,14 +249,14 @@ func (r *RDB) BatchEnqueue(ctx context.Context, items []base.BatchEnqueueItem) (
 				base.TaskKeyWithPrefix(r.prefix, item.Msg.Queue, item.Msg.ID),
 				base.PendingKeyWithPrefix(r.prefix, item.Msg.Queue),
 			}
-			argv := []any{encoded, item.Msg.ID, now}
+			argv := []any{encoded, item.Msg.ID, now, r.labelIndexes(item.Msg)}
 			enqueueCmd.Run(ctx, pipe, keys, argv...)
 		} else {
 			keys := []string{
 				base.TaskKeyWithPrefix(r.prefix, item.Msg.Queue, item.Msg.ID),
 				base.ScheduledKeyWithPrefix(r.prefix, item.Msg.Queue),
 			}
-			argv := []any{encoded, item.ProcessAt.Unix(), item.Msg.ID, ""}
+			argv := []any{encoded, item.ProcessAt.Unix(), item.Msg.ID, "", r.labelIndexes(item.Msg)}
 			scheduleCmd.Run(ctx, pipe, keys, argv...)
 		}
 		scriptIdxs = append(scriptIdxs, pipeLen)
@@ -300,7 +302,7 @@ func (r *RDB) BatchEnqueue(ctx context.Context, items []base.BatchEnqueueItem) (
 // Returns 1 if successfully enqueued
 // Returns 0 if task ID conflicts with another task
 // Returns -1 if task unique key already exists
-var enqueueUniqueCmd = redis.NewScript(`
+var enqueueUniqueCmd = redis.NewScript(taskMetadataLua + `
 local ok = redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2])
 if not ok then
   return -1
@@ -314,6 +316,7 @@ redis.call("HSET", KEYS[2],
            "pending_since", ARGV[4],
            "unique_key", KEYS[1])
 redis.call("LPUSH", KEYS[3], ARGV[1])
+set_labels(KEYS[2], ARGV[1], ARGV[5])
 return 1
 `)
 
@@ -343,6 +346,7 @@ func (r *RDB) EnqueueUnique(ctx context.Context, msg *base.TaskMessage, ttl time
 		int(ttl.Seconds()),
 		encoded,
 		r.clock.Now().UnixNano(),
+		r.labelIndexes(msg),
 	}
 	n, err := r.runScriptWithErrorCode(ctx, op, enqueueUniqueCmd, keys, argv...)
 	if err != nil {
@@ -377,7 +381,7 @@ if redis.call("EXISTS", KEYS[2]) == 0 then
 	local id = redis.call("RPOPLPUSH", KEYS[1], KEYS[3])
 	if id then
 		local key = ARGV[2] .. id
-		redis.call("HSET", key, "state", "active")
+		redis.call("HSET", key, "state", "active", "_attempt_token", ARGV[3])
 		redis.call("HDEL", key, "pending_since")
 		redis.call("ZADD", KEYS[4], ARGV[1], id)
 		return redis.call("HGET", key, "msg")
@@ -398,10 +402,12 @@ func (r *RDB) Dequeue(qnames ...string) (msg *base.TaskMessage, leaseExpirationT
 			base.ActiveKeyWithPrefix(r.prefix, qname),
 			base.LeaseKeyWithPrefix(r.prefix, qname),
 		}
+		token := uuid.NewString()
 		leaseExpirationTime = r.clock.Now().Add(LeaseDuration)
 		argv := []any{
 			leaseExpirationTime.Unix(),
 			base.TaskKeyPrefixWithPrefix(r.prefix, qname),
+			token,
 		}
 		res, err := dequeueCmd.Run(r.context(), r.client, keys, argv...).Result()
 		if err == redis.Nil {
@@ -416,6 +422,7 @@ func (r *RDB) Dequeue(qnames ...string) (msg *base.TaskMessage, leaseExpirationT
 		if msg, err = base.DecodeMessage([]byte(encoded)); err != nil {
 			return nil, time.Time{}, errors.E(op, errors.Internal, fmt.Sprintf("cannot decode message: %v", err))
 		}
+		msg.AttemptToken = token
 		return msg, leaseExpirationTime, nil
 	}
 	return nil, time.Time{}, errors.E(op, errors.NotFound, errors.ErrNoProcessableTask)
@@ -430,14 +437,14 @@ func (r *RDB) Dequeue(qnames ...string) (msg *base.TaskMessage, leaseExpirationT
 // ARGV[1] -> task ID
 // ARGV[2] -> stats expiration timestamp
 // ARGV[3] -> max int64 value
-var doneCmd = redis.NewScript(`
+var doneCmd = redis.NewScript(taskMetadataLua + `
 if redis.call("LREM", KEYS[1], 0, ARGV[1]) == 0 then
   return redis.error_reply("NOT FOUND")
 end
 if redis.call("ZREM", KEYS[2], ARGV[1]) == 0 then
   return redis.error_reply("NOT FOUND")
 end
-if redis.call("DEL", KEYS[3]) == 0 then
+if delete_task(KEYS[3]) == 0 then
   return redis.error_reply("NOT FOUND")
 end
 local n = redis.call("INCR", KEYS[4])
@@ -463,14 +470,14 @@ return redis.status_reply("OK")
 // ARGV[1] -> task ID
 // ARGV[2] -> stats expiration timestamp
 // ARGV[3] -> max int64 value
-var doneUniqueCmd = redis.NewScript(`
+var doneUniqueCmd = redis.NewScript(taskMetadataLua + `
 if redis.call("LREM", KEYS[1], 0, ARGV[1]) == 0 then
   return redis.error_reply("NOT FOUND")
 end
 if redis.call("ZREM", KEYS[2], ARGV[1]) == 0 then
   return redis.error_reply("NOT FOUND")
 end
-if redis.call("DEL", KEYS[3]) == 0 then
+if delete_task(KEYS[3]) == 0 then
   return redis.error_reply("NOT FOUND")
 end
 local n = redis.call("INCR", KEYS[4])
@@ -666,7 +673,7 @@ func (r *RDB) Requeue(ctx context.Context, msg *base.TaskMessage) error {
 // Output:
 // Returns 1 if successfully added
 // Returns 0 if task ID already exists
-var addToGroupCmd = redis.NewScript(`
+var addToGroupCmd = redis.NewScript(taskMetadataLua + `
 if redis.call("EXISTS", KEYS[1]) == 1 then
 	return 0
 end
@@ -676,6 +683,7 @@ redis.call("HSET", KEYS[1],
 	       "group", ARGV[4])
 redis.call("ZADD", KEYS[2], ARGV[3], ARGV[2])
 redis.call("SADD", KEYS[3], ARGV[4])
+set_labels(KEYS[1], ARGV[2], ARGV[5])
 return 1
 `)
 
@@ -701,6 +709,7 @@ func (r *RDB) AddToGroup(ctx context.Context, msg *base.TaskMessage, groupKey st
 		msg.ID,
 		r.clock.Now().Unix(),
 		groupKey,
+		r.labelIndexes(msg),
 	}
 	n, err := r.runScriptWithErrorCode(ctx, op, addToGroupCmd, keys, argv...)
 	if err != nil {
@@ -727,7 +736,7 @@ func (r *RDB) AddToGroup(ctx context.Context, msg *base.TaskMessage, groupKey st
 // Returns 1 if successfully added
 // Returns 0 if task ID already exists
 // Returns -1 if task unique key already exists
-var addToGroupUniqueCmd = redis.NewScript(`
+var addToGroupUniqueCmd = redis.NewScript(taskMetadataLua + `
 local ok = redis.call("SET", KEYS[4], ARGV[2], "NX", "EX", ARGV[5])
 if not ok then
   return -1
@@ -742,6 +751,7 @@ redis.call("HSET", KEYS[1],
 	       "unique_key", KEYS[4])
 redis.call("ZADD", KEYS[2], ARGV[3], ARGV[2])
 redis.call("SADD", KEYS[3], ARGV[4])
+set_labels(KEYS[1], ARGV[2], ARGV[6])
 return 1
 `)
 
@@ -771,6 +781,7 @@ func (r *RDB) AddToGroupUnique(ctx context.Context, msg *base.TaskMessage, group
 		r.clock.Now().Unix(),
 		groupKey,
 		int(ttl.Seconds()),
+		r.labelIndexes(msg),
 	}
 	n, err := r.runScriptWithErrorCode(ctx, op, addToGroupUniqueCmd, keys, argv...)
 	if err != nil {
@@ -796,7 +807,7 @@ func (r *RDB) AddToGroupUnique(ctx context.Context, msg *base.TaskMessage, group
 // Output:
 // Returns 1 if successfully enqueued
 // Returns 0 if task ID already exists
-var scheduleCmd = redis.NewScript(`
+var scheduleCmd = redis.NewScript(taskMetadataLua + `
 if redis.call("EXISTS", KEYS[1]) == 1 then
 	return 0
 end
@@ -805,6 +816,7 @@ redis.call("HSET", KEYS[1],
            "state", "scheduled",
            "group", ARGV[4])
 redis.call("ZADD", KEYS[2], ARGV[2], ARGV[3])
+set_labels(KEYS[1], ARGV[3], ARGV[5])
 return 1
 `)
 
@@ -830,6 +842,7 @@ func (r *RDB) Schedule(ctx context.Context, msg *base.TaskMessage, processAt tim
 		processAt.Unix(),
 		msg.ID,
 		msg.GroupKey,
+		r.labelIndexes(msg),
 	}
 	n, err := r.runScriptWithErrorCode(ctx, op, scheduleCmd, keys, argv...)
 	if err != nil {
@@ -855,7 +868,7 @@ func (r *RDB) Schedule(ctx context.Context, msg *base.TaskMessage, processAt tim
 // Returns 1 if successfully scheduled
 // Returns 0 if task ID already exists
 // Returns -1 if task unique key already exists
-var scheduleUniqueCmd = redis.NewScript(`
+var scheduleUniqueCmd = redis.NewScript(taskMetadataLua + `
 local ok = redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2])
 if not ok then
   return -1
@@ -869,6 +882,7 @@ redis.call("HSET", KEYS[2],
            "unique_key", KEYS[1],
            "group", ARGV[5])
 redis.call("ZADD", KEYS[3], ARGV[3], ARGV[1])
+set_labels(KEYS[2], ARGV[1], ARGV[6])
 return 1
 `)
 
@@ -899,6 +913,7 @@ func (r *RDB) ScheduleUnique(ctx context.Context, msg *base.TaskMessage, process
 		processAt.Unix(),
 		encoded,
 		msg.GroupKey,
+		r.labelIndexes(msg),
 	}
 	n, err := r.runScriptWithErrorCode(ctx, op, scheduleUniqueCmd, keys, argv...)
 	if err != nil {
@@ -1012,7 +1027,7 @@ local function delete_task_and_owned_unique_lock(task_key, id)
 			redis.pcall("DEL", unique_result)
 		end
 	end
-	redis.call("DEL", task_key)
+	delete_task(task_key)
 end
 `
 
@@ -1070,7 +1085,7 @@ end
 // ARGV[6] -> stats expiration timestamp
 // ARGV[7] -> max int64 value
 // ARGV[8] -> maximum archived tasks to evict in this script
-var archiveCmd = redis.NewScript(`
+var archiveCmd = redis.NewScript(taskMetadataLua + `
 if redis.call("LREM", KEYS[2], 0, ARGV[1]) == 0 then
   return redis.error_reply("NOT FOUND")
 end
@@ -1418,10 +1433,10 @@ func (r *RDB) ReadAggregationSet(qname, gname, setID string) ([]*base.TaskMessag
 // Time Complexity:
 // max(O(N), O(log(M))) with N being the number of tasks in the aggregation set
 // and M being the number of elements in the all-aggregation-sets list.
-var deleteAggregationSetCmd = redis.NewScript(`
+var deleteAggregationSetCmd = redis.NewScript(taskMetadataLua + `
 local ids = redis.call("ZRANGE", KEYS[1], 0, -1)
 for _, id in ipairs(ids)  do
-	redis.call("DEL", ARGV[1] .. id)
+	delete_task(ARGV[1] .. id)
 end
 redis.call("DEL", KEYS[1])
 redis.call("ZREM", KEYS[2], KEYS[1])
@@ -1470,10 +1485,10 @@ func (r *RDB) ReclaimStaleAggregationSets(qname string) error {
 // ARGV[3] -> batch size (i.e. maximum number of tasks to delete)
 //
 // Returns the number of tasks deleted.
-var deleteExpiredCompletedTasksCmd = redis.NewScript(`
+var deleteExpiredCompletedTasksCmd = redis.NewScript(taskMetadataLua + `
 local ids = redis.call("ZRANGEBYSCORE", KEYS[1], "-inf", ARGV[1], "LIMIT", 0, tonumber(ARGV[3]))
 for _, id in ipairs(ids) do
-	redis.call("DEL", ARGV[2] .. id)
+	delete_task(ARGV[2] .. id)
 	redis.call("ZREM", KEYS[1], id)
 end
 return table.getn(ids)`)

@@ -382,6 +382,10 @@ func redisNamespace(prefix string) string {
 // TaskMessage is the internal representation of a task with additional metadata fields.
 // Serialized data of this type gets written to redis.
 type TaskMessage struct {
+	// AttemptToken is assigned at dequeue and is never serialized. It fences
+	// execution metadata against late writes from a superseded worker.
+	AttemptToken string
+
 	// Type indicates the kind of the task to be performed.
 	Type string
 

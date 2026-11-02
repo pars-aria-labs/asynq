@@ -7,6 +7,7 @@ package asynq
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand/v2"
 	"runtime"
@@ -203,6 +204,7 @@ func (p *processor) exec() {
 			}()
 
 			ctx, cancel := asynqcontext.New(p.baseCtxFn(), msg, deadline)
+			ctx, attempt := p.beginAttempt(ctx, msg)
 			p.cancelations.Add(msg.ID, cancel)
 			defer func() {
 				cancel()
@@ -213,6 +215,7 @@ func (p *processor) exec() {
 			select {
 			case <-ctx.Done():
 				// already canceled (e.g. deadline exceeded).
+				p.finishAttempt(msg, attempt, ctx.Err(), false)
 				p.handleFailedMessage(ctx, lease, msg, ctx.Err())
 				return
 			default:
@@ -230,7 +233,9 @@ func (p *processor) exec() {
 						ctx:    ctx,
 					},
 				)
-				task.headers = msg.Headers
+				// Handler mutations must not change enqueue metadata or invalidate
+				// the label indexes associated with the stored message.
+				task.headers = maps.Clone(msg.Headers)
 				resCh <- p.perform(ctx, task)
 			}()
 
@@ -238,16 +243,21 @@ func (p *processor) exec() {
 			case <-p.abort:
 				// time is up, push the message back to queue and quit this worker goroutine.
 				p.logger.Warnf("Quitting worker. task id=%s", msg.ID)
+				cancel()
+				p.finishAttempt(msg, attempt, context.Canceled, true)
 				p.requeue(lease, msg)
 				return
 			case <-lease.Done():
 				cancel()
+				p.finishAttempt(msg, attempt, ErrLeaseExpired, false)
 				p.handleFailedMessage(ctx, lease, msg, ErrLeaseExpired)
 				return
 			case <-ctx.Done():
+				p.finishAttempt(msg, attempt, ctx.Err(), false)
 				p.handleFailedMessage(ctx, lease, msg, ctx.Err())
 				return
 			case resErr := <-resCh:
+				p.finishAttempt(msg, attempt, resErr, false)
 				if resErr != nil {
 					p.handleFailedMessage(ctx, lease, msg, resErr)
 					return

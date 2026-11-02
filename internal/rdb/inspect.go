@@ -1184,7 +1184,7 @@ func (r *RDB) ArchiveAllScheduledTasks(qname string) (int64, error) {
 //
 // Output:
 // integer: Number of tasks archived
-var archiveAllAggregatingCmd = redis.NewScript(`
+var archiveAllAggregatingCmd = redis.NewScript(taskMetadataLua + `
 local limit = tonumber(ARGV[#ARGV])
 local ids = {}
 if limit > 0 then
@@ -1256,7 +1256,7 @@ func (r *RDB) ArchiveAllAggregatingTasks(qname, gname string) (int64, error) {
 //
 // Output:
 // integer: Number of tasks archived
-var archiveAllPendingCmd = redis.NewScript(`
+var archiveAllPendingCmd = redis.NewScript(taskMetadataLua + `
 local limit = tonumber(ARGV[#ARGV])
 local ids = {}
 if limit > 0 then
@@ -1327,7 +1327,7 @@ func (r *RDB) ArchiveAllPendingTasks(qname string) (int64, error) {
 // Returns -1 if task is already archived.
 // Returns -2 if task is in active state.
 // Returns error reply if unexpected error occurs.
-var archiveTaskCmd = redis.NewScript(`
+var archiveTaskCmd = redis.NewScript(taskMetadataLua + `
 if redis.call("EXISTS", KEYS[1]) == 0 then
 	return 0
 end
@@ -1433,7 +1433,7 @@ func (r *RDB) ArchiveTask(qname, id string) error {
 //
 // Output:
 // integer: number of tasks archived
-var archiveAllCmd = redis.NewScript(`
+var archiveAllCmd = redis.NewScript(taskMetadataLua + `
 local limit = tonumber(ARGV[#ARGV])
 local ids = {}
 if limit > 0 then
@@ -1579,7 +1579,7 @@ func (r *RDB) UpdateTaskPayload(qname, id string, payload []byte) error {
 // Returns 1 if task is successfully deleted.
 // Returns 0 if task is not found.
 // Returns -1 if task is in active state.
-var deleteTaskCmd = redis.NewScript(deleteTaskAndOwnedUniqueLockLua + `
+var deleteTaskCmd = redis.NewScript(taskMetadataLua + deleteTaskAndOwnedUniqueLockLua + `
 if redis.call("EXISTS", KEYS[1]) == 0 then
 	return 0
 end
@@ -1712,7 +1712,7 @@ func (r *RDB) DeleteAllCompletedTasks(qname string) (int64, error) {
 //
 // Output:
 // integer: number of tasks deleted
-var deleteAllCmd = redis.NewScript(deleteTaskAndOwnedUniqueLockLua + `
+var deleteAllCmd = redis.NewScript(taskMetadataLua + deleteTaskAndOwnedUniqueLockLua + `
 local limit = tonumber(ARGV[#ARGV])
 local ids = {}
 if limit > 0 then
@@ -1750,7 +1750,7 @@ func (r *RDB) deleteAll(key, qname string) (int64, error) {
 // -------
 // ARGV[1] -> task key prefix
 // ARGV[2] -> group name
-var deleteAllAggregatingCmd = redis.NewScript(deleteTaskAndOwnedUniqueLockLua + `
+var deleteAllAggregatingCmd = redis.NewScript(taskMetadataLua + deleteTaskAndOwnedUniqueLockLua + `
 local limit = tonumber(ARGV[#ARGV])
 local ids = {}
 if limit > 0 then
@@ -1800,7 +1800,7 @@ func (r *RDB) DeleteAllAggregatingTasks(qname, gname string) (int64, error) {
 //
 // Output:
 // integer: number of tasks deleted
-var deleteAllPendingCmd = redis.NewScript(deleteTaskAndOwnedUniqueLockLua + `
+var deleteAllPendingCmd = redis.NewScript(taskMetadataLua + deleteTaskAndOwnedUniqueLockLua + `
 local limit = tonumber(ARGV[#ARGV])
 local ids = {}
 if limit > 0 then
@@ -1851,25 +1851,25 @@ func (r *RDB) DeleteAllPendingTasks(qname string) (int64, error) {
 // Numeric code to indicate the status.
 // Returns 1 if successfully removed.
 // Returns -2 if the queue has active tasks.
-var removeQueueForceCmd = redis.NewScript(`
+var removeQueueForceCmd = redis.NewScript(taskMetadataLua + `
 local active = redis.call("LLEN", KEYS[2])
 if active > 0 then
     return -2
 end
 for _, id in ipairs(redis.call("LRANGE", KEYS[1], 0, -1)) do
-	redis.call("DEL", ARGV[1] .. id)
+	delete_task(ARGV[1] .. id)
 end
 for _, id in ipairs(redis.call("LRANGE", KEYS[2], 0, -1)) do
-	redis.call("DEL", ARGV[1] .. id)
+	delete_task(ARGV[1] .. id)
 end
 for _, id in ipairs(redis.call("ZRANGE", KEYS[3], 0, -1)) do
-	redis.call("DEL", ARGV[1] .. id)
+	delete_task(ARGV[1] .. id)
 end
 for _, id in ipairs(redis.call("ZRANGE", KEYS[4], 0, -1)) do
-	redis.call("DEL", ARGV[1] .. id)
+	delete_task(ARGV[1] .. id)
 end
 for _, id in ipairs(redis.call("ZRANGE", KEYS[5], 0, -1)) do
-	redis.call("DEL", ARGV[1] .. id)
+	delete_task(ARGV[1] .. id)
 end
 redis.call("DEL", KEYS[1])
 redis.call("DEL", KEYS[2])

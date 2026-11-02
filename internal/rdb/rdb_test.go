@@ -617,7 +617,10 @@ func TestDequeue(t *testing.T) {
 			t.Errorf("(*RDB).Dequeue(%v) returned error %v", tc.qnames, err)
 			continue
 		}
-		if !cmp.Equal(gotMsg, tc.wantMsg) {
+		if gotMsg.AttemptToken == "" {
+			t.Fatal("dequeue must assign an execution token")
+		}
+		if !cmp.Equal(gotMsg, tc.wantMsg, cmpopts.IgnoreFields(base.TaskMessage{}, "AttemptToken")) {
 			t.Errorf("(*RDB).Dequeue(%v) returned message %v; want %v",
 				tc.qnames, gotMsg, tc.wantMsg)
 			continue
@@ -830,7 +833,7 @@ func TestDequeueIgnoresPausedQueues(t *testing.T) {
 		h.SeedAllPendingQueues(t, r.client, tc.pending)
 
 		got, _, err := r.Dequeue(tc.qnames...)
-		if !cmp.Equal(got, tc.wantMsg) || !errors.Is(err, tc.wantErr) {
+		if !cmp.Equal(got, tc.wantMsg, cmpopts.IgnoreFields(base.TaskMessage{}, "AttemptToken")) || !errors.Is(err, tc.wantErr) {
 			t.Errorf("Dequeue(%v) = %v, %v; want %v, %v",
 				tc.qnames, got, err, tc.wantMsg, tc.wantErr)
 			continue

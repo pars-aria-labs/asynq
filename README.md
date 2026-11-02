@@ -62,6 +62,11 @@ into the rough edges that tend to appear when Asynq is operated in production:
 
 ## Features
 
+The local task-operations extension adds indexed business labels, per-attempt
+execution history, progress reporting, failure groups, copy-based replay and
+operator audit storage. See [Task execution and operator APIs](docs/task-operations.md)
+for examples, bounds and lifecycle guarantees.
+
 - At-least-once task execution
 - Immediate, delayed, and periodic scheduling
 - Automatic retries and worker-crash recovery

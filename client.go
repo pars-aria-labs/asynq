@@ -434,6 +434,9 @@ func (c *Client) EnqueueContext(ctx context.Context, task *Task, opts ...Option)
 		}
 		maps.Copy(msg.Headers, opt.headers)
 	}
+	if err := base.ValidateLabels(base.TaskLabels(msg.Headers)); err != nil {
+		return nil, err
+	}
 	now := time.Now()
 	var state base.TaskState
 	if opt.processAt.After(now) {
@@ -552,12 +555,22 @@ func (c *Client) BatchEnqueueContext(ctx context.Context, tasks []*Task, opts ..
 			ID:        opt.taskID,
 			Type:      task.Type(),
 			Payload:   task.Payload(),
-			Headers:   task.Headers(),
+			Headers:   maps.Clone(task.Headers()),
 			Queue:     opt.queue,
 			Retry:     opt.retry,
 			Deadline:  deadline.Unix(),
 			Timeout:   int64(timeout.Seconds()),
 			Retention: int64(opt.retention.Seconds()),
+		}
+		if len(opt.headers) > 0 {
+			if msg.Headers == nil {
+				msg.Headers = make(map[string]string)
+			}
+			maps.Copy(msg.Headers, opt.headers)
+		}
+		if err := base.ValidateLabels(base.TaskLabels(msg.Headers)); err != nil {
+			results[i] = BatchEnqueueResult{Err: err}
+			continue
 		}
 
 		now := time.Now()
